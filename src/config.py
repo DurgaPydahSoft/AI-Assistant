@@ -10,3 +10,4 @@ class Config:
     MODEL_NAME = "allenai/olmo-3.1-32b-think:free"
     CACHE_TTL = 3600  # 1 hour
     MAX_STEPS = 3
+

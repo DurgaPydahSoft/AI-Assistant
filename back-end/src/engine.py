@@ -22,11 +22,11 @@ RULES:
 - Result set limit is 10.
 """
 
-def get_system_prompt():
-    all_cols = get_collection_names(db)
+async def get_system_prompt():
+    all_cols = await get_collection_names(db)
     return SYSTEM_PROMPT_TEMPLATE.format(collections=all_cols)
 
-def execute_mongo_query(query_data_dict):
+async def execute_mongo_query(query_data_dict):
     if db is None: return "Error: No database connection."
     try:
         col_name = query_data_dict.get("collection")
@@ -34,11 +34,14 @@ def execute_mongo_query(query_data_dict):
         collection = db[col_name]
         
         if query_type == "find":
-            results = list(collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(10))
+            cursor = collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(10)
+            results = await cursor.to_list(length=10)
         elif query_type == "count":
-            return {"count": collection.count_documents(query_data_dict.get("filter", {}))}
+            count = await collection.count_documents(query_data_dict.get("filter", {}))
+            return {"count": count}
         elif query_type == "aggregate":
-            results = list(collection.aggregate(query_data_dict.get("pipeline", [])))
+            cursor = collection.aggregate(query_data_dict.get("pipeline", []))
+            results = await cursor.to_list(length=10)
         else:
             return f"Error: Unknown query type '{query_type}'"
         

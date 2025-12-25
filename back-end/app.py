@@ -23,7 +23,7 @@ app.add_middleware(
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():
-        messages = [{"role": "system", "content": get_system_prompt()}] + request.history + [{"role": "user", "content": request.message}]
+        messages = [{"role": "system", "content": await get_system_prompt()}] + request.history + [{"role": "user", "content": request.message}]
         
         # 1. Try Cache First
         from src.cache import chat_cache
@@ -35,7 +35,8 @@ async def chat_endpoint(request: ChatRequest):
         full_turn_content = ""
         for _ in range(Config.MAX_STEPS):
             try:
-                response = client.chat.completions.create(
+                # 2. Async Client Streaming
+                response = await client.chat.completions.create(
                     model=Config.MODEL_NAME,
                     messages=messages,
                     temperature=0.1,
@@ -43,7 +44,7 @@ async def chat_endpoint(request: ChatRequest):
                 )
                 
                 step_content = ""
-                for chunk in response:
+                async for chunk in response:
                     content = chunk.choices[0].delta.content or ""
                     step_content += content
                     yield content
@@ -53,19 +54,18 @@ async def chat_endpoint(request: ChatRequest):
                 if action_data:
                     action = action_data.get("action")
                     if action == "get_schema":
-                        schema_info = get_specific_collection_schema(db, action_data.get("collections", []))
+                        schema_info = await get_specific_collection_schema(db, action_data.get("collections", []))
                         messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
                         yield "\n[System: Schema Fetched]\n"
                         continue
                     elif action == "query":
-                        result = execute_mongo_query(action_data)
+                        result = await execute_mongo_query(action_data)
                         messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})
                         yield f"\n[System: Executed query on {action_data.get('collection')}]\n"
                         continue
                 
-                # If we reached here, it's a final answer
                 chat_cache.set(messages[:-1] + [{"role": "user", "content": request.message}], step_content)
                 break
             except Exception as e:
@@ -77,7 +77,7 @@ async def chat_endpoint(request: ChatRequest):
 @app.get("/collections")
 async def get_collections():
     from src.schema import get_collection_names
-    return {"collections": get_collection_names(db)}
+    return {"collections": await get_collection_names(db)}
 
 if __name__ == "__main__":
     import uvicorn

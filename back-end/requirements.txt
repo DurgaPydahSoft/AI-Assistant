@@ -3,4 +3,5 @@ openai
 pymongo
 fastapi
 uvicorn
+motor
 

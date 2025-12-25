@@ -17,7 +17,7 @@ def map_field_type(value):
     if isinstance(value, datetime): return "DateTime"
     return str(type(value).__name__) if value is not None else "Null"
 
-def analyze_collection_schema(collection, sample_size=3, force_refresh=False):
+async def analyze_collection_schema(collection, sample_size=3, force_refresh=False):
     col_name = collection.name
     now = time.time()
     
@@ -29,9 +29,11 @@ def analyze_collection_schema(collection, sample_size=3, force_refresh=False):
     schema = {}
     try:
         pipeline = [{"$sample": {"size": sample_size}}]
-        docs = list(collection.aggregate(pipeline))
+        cursor = collection.aggregate(pipeline)
+        docs = await cursor.to_list(length=sample_size)
     except:
-        docs = list(collection.find().limit(sample_size))
+        cursor = collection.find().limit(sample_size)
+        docs = await cursor.to_list(length=sample_size)
     
     if not docs: return {}
     
@@ -44,18 +46,17 @@ def analyze_collection_schema(collection, sample_size=3, force_refresh=False):
     SCHEMA_CACHE[col_name] = {"schema": final_schema, "timestamp": now}
     return final_schema
 
-def get_collection_names(db):
-    return db.list_collection_names() if db is not None else []
+async def get_collection_names(db):
+    return await db.list_collection_names() if db is not None else []
 
-def get_specific_collection_schema(db, target_collections):
+async def get_specific_collection_schema(db, target_collections):
     if db is None: return "No database connection."
     summary_lines = []
-    available = db.list_collection_names()
+    available = await db.list_collection_names()
     for col_name in target_collections:
         if col_name not in available: continue
-        schema = analyze_collection_schema(db[col_name], sample_size=3)
-        # Ultra-compact: just keys and first letter of types if it gets too long
+        schema = await analyze_collection_schema(db[col_name], sample_size=3)
         fields = [f"{k}:{v}" for k, v in schema.items()]
-        if len(fields) > 30: fields = fields[:30] + ["..."] # Further restricted from 50 to 30
-        summary_lines.append(f"{col_name}({', '.join(fields)})") # Format like table(f1, f2)
+        if len(fields) > 30: fields = fields[:30] + ["..."]
+        summary_lines.append(f"{col_name}({', '.join(fields)})")
     return "\n".join(summary_lines) if summary_lines else "No specific schemas found."

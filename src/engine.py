@@ -2,34 +2,24 @@ import json
 from src.database import db
 from src.schema import get_collection_names, get_specific_collection_schema
 from src.config import Config
+from src.cache import chat_cache
 
-SYSTEM_PROMPT_TEMPLATE = """You are an advanced MongoDB AI Assistant. Your goal is to help users query their specific MongoDB database.
+SYSTEM_PROMPT_TEMPLATE = """You are a MongoDB Assistant.
+DB: {collections}
 
-DATABASE CONTEXT:
-- Available Collections: {collections}
-
-INSTRUCTIONS:
-1. Every time the user asks a question, first check if any of the "Available Collections" listed above are relevant.
-2. If YES, and you need their schema, output a SPECIAL JSON block to request schemas:
+TASK:
+1. Identify relevant collections.
+2. If schema unknown, request: ```json {{ "action": "get_schema", "collections": ["col"] }} ```
+3. If ready, generate query:
    ```json
-   {{ "action": "get_schema", "collections": ["coll1", "coll2"] }}
+   {{ "action": "query", "collection": "name", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "projection": {{}} }}
    ```
-3. If you have the schema information (provided in a system message) and are ready to query, output a JSON block for the query:
-   ```json
-   {{
-     "action": "query",
-     "collection": "Name",
-     "type": "find|count|aggregate",
-     "filter": {{}},
-     "pipeline": [],
-     "projection": {{}}
-   }}
-   ```
-4. If it's a general question or you are giving the final answer after seeing results, just reply normally.
+4. Otherwise, reply normally.
 
-CRITICAL:
-- Do NOT guess the schema. Use "get_schema" if you haven't seen it yet for a collection.
-- Always prefer $regex for user-friendly text searches.
+RULES:
+- Don't guess schema.
+- Use regex for searches.
+- Result set limit is 10.
 """
 
 def get_system_prompt():

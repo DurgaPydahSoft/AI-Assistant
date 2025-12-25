@@ -17,34 +17,45 @@ def start_chat():
             if user_input.lower() == 'exit': break
             history.append({"role": "user", "content": user_input})
             
+            # 1. Try Cache First
+            from src.cache import chat_cache
+            cached_response = chat_cache.get(history)
+            if cached_response:
+                print(f"Assistant: [Cached Answer]\n{cached_response}")
+                history.append({"role": "assistant", "content": cached_response})
+                continue
+
             for _ in range(Config.MAX_STEPS):
                 print("Assistant: ", end="", flush=True)
-                assistant_content = ""
+                step_content = ""
                 response = call_llm_stream(history)
                 for chunk in response:
                     if chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         print(content, end="", flush=True)
-                        assistant_content += content
+                        step_content += content
                 print()
 
-                action_data = extract_json_action(assistant_content)
+                action_data = extract_json_action(step_content)
                 if action_data:
                     action = action_data.get("action")
                     if action == "get_schema":
                         targets = action_data.get("collections", [])
                         print(f"[System]: Fetching schemas for {targets}...")
                         schema_info = get_specific_collection_schema(db, targets)
-                        history.append({"role": "assistant", "content": assistant_content})
+                        history.append({"role": "assistant", "content": step_content})
                         history.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
                         continue
                     elif action == "query":
                         print(f"[System]: Querying {action_data.get('collection')}...")
                         result = execute_mongo_query(action_data)
-                        history.append({"role": "assistant", "content": assistant_content})
+                        history.append({"role": "assistant", "content": step_content})
                         history.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})
                         continue
-                history.append({"role": "assistant", "content": assistant_content})
+                
+                # Final answer
+                chat_cache.set(history, step_content)
+                history.append({"role": "assistant", "content": step_content})
                 break
         except KeyboardInterrupt: break
         except Exception as e: print(f"\n[Fatal Error]: {e}")

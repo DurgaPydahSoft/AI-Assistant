@@ -15,6 +15,14 @@ async def chat_endpoint(request: ChatRequest):
     async def event_generator():
         messages = [{"role": "system", "content": get_system_prompt()}] + request.history + [{"role": "user", "content": request.message}]
         
+        # 1. Try Cache First
+        from src.cache import chat_cache
+        cached_response = chat_cache.get(messages)
+        if cached_response:
+            yield f"[Cached Answer]\n{cached_response}"
+            return
+
+        full_turn_content = ""
         for _ in range(Config.MAX_STEPS):
             try:
                 response = client.chat.completions.create(
@@ -24,27 +32,31 @@ async def chat_endpoint(request: ChatRequest):
                     stream=True
                 )
                 
-                full_content = ""
+                step_content = ""
                 for chunk in response:
                     content = chunk.choices[0].delta.content or ""
-                    full_content += content
+                    step_content += content
                     yield content
 
-                action_data = extract_json_action(full_content)
+                full_turn_content += step_content
+                action_data = extract_json_action(step_content)
                 if action_data:
                     action = action_data.get("action")
                     if action == "get_schema":
                         schema_info = get_specific_collection_schema(db, action_data.get("collections", []))
-                        messages.append({"role": "assistant", "content": full_content})
+                        messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
                         yield "\n[System: Schema Fetched]\n"
                         continue
                     elif action == "query":
                         result = execute_mongo_query(action_data)
-                        messages.append({"role": "assistant", "content": full_content})
+                        messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})
                         yield f"\n[System: Executed query on {action_data.get('collection')}]\n"
                         continue
+                
+                # If we reached here, it's a final answer
+                chat_cache.set(messages[:-1] + [{"role": "user", "content": request.message}], step_content)
                 break
             except Exception as e:
                 yield f"\n[Error: {e}]\n"

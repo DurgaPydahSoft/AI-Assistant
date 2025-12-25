@@ -17,7 +17,7 @@ def map_field_type(value):
     if isinstance(value, datetime): return "DateTime"
     return str(type(value).__name__) if value is not None else "Null"
 
-def analyze_collection_schema(collection, sample_size=10, force_refresh=False):
+def analyze_collection_schema(collection, sample_size=3, force_refresh=False):
     col_name = collection.name
     now = time.time()
     
@@ -40,7 +40,7 @@ def analyze_collection_schema(collection, sample_size=10, force_refresh=False):
             if key not in schema: schema[key] = set()
             schema[key].add(map_field_type(value))
     
-    final_schema = {k: ", ".join(sorted(list(v))) for k, v in schema.items()}
+    final_schema = {k: "/".join(sorted(list(v))) for k, v in schema.items()}
     SCHEMA_CACHE[col_name] = {"schema": final_schema, "timestamp": now}
     return final_schema
 
@@ -54,7 +54,8 @@ def get_specific_collection_schema(db, target_collections):
     for col_name in target_collections:
         if col_name not in available: continue
         schema = analyze_collection_schema(db[col_name], sample_size=3)
+        # Ultra-compact: just keys and first letter of types if it gets too long
         fields = [f"{k}:{v}" for k, v in schema.items()]
-        if len(fields) > 50: fields = fields[:50] + ["..."]
-        summary_lines.append(f"Coll: {col_name} [{', '.join(fields)}]")
+        if len(fields) > 30: fields = fields[:30] + ["..."] # Further restricted from 50 to 30
+        summary_lines.append(f"{col_name}({', '.join(fields)})") # Format like table(f1, f2)
     return "\n".join(summary_lines) if summary_lines else "No specific schemas found."

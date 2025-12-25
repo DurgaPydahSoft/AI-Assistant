@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from src.config import Config
 from src.database import db
 from src.llm import client
@@ -9,6 +10,15 @@ from src.models import ChatRequest
 from src.engine import get_system_prompt, execute_mongo_query, extract_json_action
 
 app = FastAPI(title="MongoDB AI Assistant API")
+
+# Add CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):

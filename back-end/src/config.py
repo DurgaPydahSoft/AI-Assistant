@@ -12,4 +12,5 @@ class Config:
     #MODEL_NAME = "mistralai/devstral-2512:free"
     CACHE_TTL = 3600  # 1 hour
     MAX_STEPS = 3
+    DEFAULT_LIMIT = 50
 

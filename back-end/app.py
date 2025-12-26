@@ -23,7 +23,7 @@ app.add_middleware(
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():
-        messages = [{"role": "system", "content": await get_system_prompt()}] + request.history + [{"role": "user", "content": request.message}]
+        messages = [{"role": "system", "content": await get_system_prompt(request.message)}] + request.history + [{"role": "user", "content": request.message}]
         
         # 1. Try Cache First
         from src.cache import chat_cache
@@ -44,32 +44,50 @@ async def chat_endpoint(request: ChatRequest):
                 )
                 
                 step_content = ""
+                is_json_block = False
+                
                 async for chunk in response:
                     content = chunk.choices[0].delta.content or ""
                     step_content += content
-                    yield content
+                    
+                    # 1. Detect if we are inside a JSON block meant for orchestration
+                    if "```json" in step_content and not is_json_block:
+                        is_json_block = True
+                    
+                    # 2. Only yield if it's NOT a hidden orchestration block
+                    # Note: There's a tiny chance of leaking "```" if the AI takes several chunks to finish the string,
+                    # but for most modern models/chunk sizes, this logic is sufficient.
+                    if not is_json_block:
+                        # Avoid yielding snippets that are partial starts of ```json
+                        if not ("```".startswith(content.strip()) or content.strip().startswith("`")):
+                             yield content
+                    else:
+                        pass # Silently consume orchestration tokens
 
                 full_turn_content += step_content
                 action_data = extract_json_action(step_content)
+                
                 if action_data:
                     action = action_data.get("action")
                     if action == "get_schema":
                         schema_info = await get_specific_collection_schema(db, action_data.get("collections", []))
                         messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
-                        yield "\n[System: Schema Fetched]\n"
+                        print(f"[LOG] Schema Fetch: {action_data.get('collections')}")
                         continue
                     elif action == "query":
                         result = await execute_mongo_query(action_data)
                         messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})
-                        yield f"\n[System: Executed query on {action_data.get('collection')}]\n"
+                        print(f"[LOG] Query Executed: {action_data.get('collection')}")
                         continue
                 
+                # If we reached here without a 'continue', it's the final answer
                 chat_cache.set(messages[:-1] + [{"role": "user", "content": request.message}], step_content)
                 break
             except Exception as e:
-                yield f"\n[Error: {e}]\n"
+                print(f"ERROR: {e}")
+                yield f"\n[Error processing request]\n"
                 break
 
     return StreamingResponse(event_generator(), media_type="text/plain")

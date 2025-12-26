@@ -7,17 +7,22 @@ from src.engine import get_system_prompt, execute_mongo_query, extract_json_acti
 import asyncio
 
 async def start_chat():
-    history = [{"role": "system", "content": await get_system_prompt()}]
     print("\n--- MongoDB AI Assistant (Modular Console) ---")
     print(f"Connected to DB via Async Motor")
     print("Type 'exit' to quit.\n")
     
+    history = []
+    
     while True:
         try:
-            # Note: input() is blocking, but in a CLI this is expected.
             user_input = input("You: ").strip()
             if not user_input: continue
             if user_input.lower() == 'exit': break
+            
+            # Dynamic re-injection of system prompt based on current query
+            system_prompt = await get_system_prompt(user_input)
+            history = [{"role": "system", "content": system_prompt}] + [m for m in history if m["role"] != "system"]
+            
             history.append({"role": "user", "content": user_input})
             
             from src.cache import chat_cache

@@ -1,8 +1,8 @@
 import json
 from src.database import db
-from src.schema import get_collection_names, get_specific_collection_schema
 from src.config import Config
-from src.cache import chat_cache
+from src.schema import get_collection_names, get_specific_collection_schema
+from src.examples import EXAMPLES_BY_CATEGORY
 
 SYSTEM_PROMPT_TEMPLATE = """ROLE: Expert MongoDB Assistant
 DB_COLS: {collections}
@@ -13,24 +13,43 @@ PROTOCOL:
 3. [Data Available] -> Speak ONLY from seen "Database Result".
 
 STRICT TRUTH POLICY:
-- ❌ NEVER invent data (emails, names, phone numbers).
-- ❌ NEVER use placeholder domains like "example.com".
-- ❌ NEVER answer before a query result is provided in history.
-- ✅ IF DB result is `[]`, state: "No matching records found in the database."
+- ❌ NEVER invent data or use placeholders (e.g., example.com).
+- ✅ IF DB result is `[]`, state: "No records found."
+
+EXAMPLES:
+{examples}
 
 SEARCH INTELLIGENCE:
-- FUZZY MAPPING: Map user intent (e.g., 'phone') to fields (e.g., 'mobile').
-- AMBIGUITY: Use `$or` for multi-field searches (e.g., `["name", "username"]`).
-- REGEX: Default to `{{ "$regex": "...", "$options": "i" }}` for strings.
+- Map user intent to fields. Use `$or` for multi-field ambiguity.
+- Always use `$regex` with `$options: "i"` for strings.
 
 RULES:
-- Limit: 10 docs.
-- No schema guessing.
+- Limit: Max {limit} docs per query.
 """
 
-async def get_system_prompt():
+async def get_system_prompt(user_message=""):
     all_cols = await get_collection_names(db)
-    return SYSTEM_PROMPT_TEMPLATE.format(collections=all_cols)
+    
+    # Dynamic Example Selection
+    selected_examples = ""
+    msg_low = user_message.lower()
+    
+    if any(k in msg_low for k in ["how many", "count", "average", "avg", "sum", "total", "math"]):
+        selected_examples += EXAMPLES_BY_CATEGORY["aggregation"]
+    
+    # If it looks like a person/contact search or ambiguous query
+    if any(k in msg_low for k in ["find", "search", "who is", "email", "phone", "contact", "name"]):
+        selected_examples += EXAMPLES_BY_CATEGORY["search"]
+        
+    # Default to search if nothing else matched but we have content
+    if not selected_examples and user_message:
+        selected_examples = EXAMPLES_BY_CATEGORY["search"]
+
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        collections=all_cols, 
+        examples=selected_examples,
+        limit=Config.DEFAULT_LIMIT
+    )
 
 async def execute_mongo_query(query_data_dict):
     if db is None: return "Error: No database connection."
@@ -38,16 +57,17 @@ async def execute_mongo_query(query_data_dict):
         col_name = query_data_dict.get("collection")
         query_type = query_data_dict.get("type", "find")
         collection = db[col_name]
+        limit = Config.DEFAULT_LIMIT
         
         if query_type == "find":
-            cursor = collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(10)
-            results = await cursor.to_list(length=10)
+            cursor = collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(limit)
+            results = await cursor.to_list(length=limit)
         elif query_type == "count":
             count = await collection.count_documents(query_data_dict.get("filter", {}))
             return {"count": count}
         elif query_type == "aggregate":
             cursor = collection.aggregate(query_data_dict.get("pipeline", []))
-            results = await cursor.to_list(length=10)
+            results = await cursor.to_list(length=limit)
         else:
             return f"Error: Unknown query type '{query_type}'"
         

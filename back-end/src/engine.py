@@ -9,7 +9,7 @@ DB_COLS: {collections}
 
 PROTOCOL:
 1. [Schema Missing] -> Output: ```json {{ "action": "get_schema", "collections": ["..."] }} ```
-2. [Data Needed] -> Output: ```json {{ "action": "query", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "projection": {{}} }} ```
+2. [Data Needed] -> Output: ```json {{ "action": "query|insert|update|delete", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "document": {{}}, "update": {{}} }} ```
 3. [Data Available] -> Speak ONLY from seen "Database Result".
 
 STRICT TRUTH POLICY:
@@ -25,6 +25,7 @@ SEARCH INTELLIGENCE:
 
 RULES:
 - Limit: Max {limit} docs per query.
+- Precision: ALWAYS use specific filters for Update/Delete to avoid bulk accidental changes.
 """
 
 async def get_system_prompt(user_message=""):
@@ -36,6 +37,9 @@ async def get_system_prompt(user_message=""):
     
     if any(k in msg_low for k in ["how many", "count", "average", "avg", "sum", "total", "math"]):
         selected_examples += EXAMPLES_BY_CATEGORY["aggregation"]
+    
+    if any(k in msg_low for k in ["add", "insert", "create", "update", "change", "set", "remove", "delete", "delete", "edit"]):
+        selected_examples += EXAMPLES_BY_CATEGORY["crud"]
     
     # If it looks like a person/contact search or ambiguous query
     if any(k in msg_low for k in ["find", "search", "who is", "email", "phone", "contact", "name"]):
@@ -54,26 +58,50 @@ async def get_system_prompt(user_message=""):
 async def execute_mongo_query(query_data_dict):
     if db is None: return "Error: No database connection."
     try:
+        action = query_data_dict.get("action", "query")
         col_name = query_data_dict.get("collection")
-        query_type = query_data_dict.get("type", "find")
         collection = db[col_name]
         limit = Config.DEFAULT_LIMIT
         
-        if query_type == "find":
-            cursor = collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(limit)
-            results = await cursor.to_list(length=limit)
-        elif query_type == "count":
-            count = await collection.count_documents(query_data_dict.get("filter", {}))
-            return {"count": count}
-        elif query_type == "aggregate":
-            cursor = collection.aggregate(query_data_dict.get("pipeline", []))
-            results = await cursor.to_list(length=limit)
+        if action == "query":
+            query_type = query_data_dict.get("type", "find")
+            if query_type == "find":
+                cursor = collection.find(query_data_dict.get("filter", {}), query_data_dict.get("projection")).limit(limit)
+                results = await cursor.to_list(length=limit)
+            elif query_type == "count":
+                count = await collection.count_documents(query_data_dict.get("filter", {}))
+                return {"count": count}
+            elif query_type == "aggregate":
+                cursor = collection.aggregate(query_data_dict.get("pipeline", []))
+                results = await cursor.to_list(length=limit)
+            else:
+                return f"Error: Unknown query type '{query_type}'"
+            
+            for doc in results:
+                if '_id' in doc: doc['_id'] = str(doc['_id'])
+            return results
+
+        elif action == "insert":
+            doc = query_data_dict.get("document", {})
+            result = await collection.insert_one(doc)
+            return {"status": "success", "inserted_id": str(result.inserted_id)}
+
+        elif action == "update":
+            filter_data = query_data_dict.get("filter", {})
+            update_data = query_data_dict.get("update", {})
+            if not filter_data: return "Error: Update requires a filter for safety."
+            result = await collection.update_many(filter_data, update_data)
+            return {"status": "success", "matched_count": result.matched_count, "modified_count": result.modified_count}
+
+        elif action == "delete":
+            filter_data = query_data_dict.get("filter", {})
+            if not filter_data: return "Error: Delete requires a filter for safety."
+            result = await collection.delete_many(filter_data)
+            return {"status": "success", "deleted_count": result.deleted_count}
+
         else:
-            return f"Error: Unknown query type '{query_type}'"
-        
-        for doc in results:
-            if '_id' in doc: doc['_id'] = str(doc['_id'])
-        return results
+            return f"Error: Unknown action '{action}'"
+
     except Exception as e:
         return f"Database Error: {str(e)}"
 

@@ -48,5 +48,37 @@ Output: ```json
     { "$group": { "_id": null, "avg": { "$avg": "$age" } } }
   ]
 }
+```""",
+
+    "crud": """
+EXAMPLE: Insert Data
+User: "Add user Satya with email satya@example.com"
+Output: ```json
+{
+  "action": "insert",
+  "collection": "users",
+  "document": { "name": "Satya", "email": "satya@example.com" }
+}
+```
+
+EXAMPLE: Update Data
+User: "Update Satya's phone to 9999999999"
+Output: ```json
+{
+  "action": "update",
+  "collection": "users",
+  "filter": { "name": { "$regex": "Satya", "$options": "i" } },
+  "update": { "$set": { "phone": "9999999999" } }
+}
+```
+
+EXAMPLE: Delete Data
+User: "Remove user with email tester@test.com"
+Output: ```json
+{
+  "action": "delete",
+  "collection": "users",
+  "filter": { "email": "tester@test.com" }
+}
 ```"""
 }

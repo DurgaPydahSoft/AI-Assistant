@@ -52,8 +52,8 @@ async def start_chat():
                         history.append({"role": "assistant", "content": step_content})
                         history.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
                         continue
-                    elif action == "query":
-                        print(f"[System]: Querying {action_data.get('collection')}...")
+                    elif action in ["query", "insert", "update", "delete"]:
+                        print(f"[System]: Executing {action} on {action_data.get('collection')}...")
                         result = await execute_mongo_query(action_data)
                         history.append({"role": "assistant", "content": step_content})
                         history.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})

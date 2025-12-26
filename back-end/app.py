@@ -75,11 +75,12 @@ async def chat_endpoint(request: ChatRequest):
                         messages.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
                         print(f"[LOG] Schema Fetch: {action_data.get('collections')}")
                         continue
-                    elif action == "query":
+                    elif action in ["query", "insert", "update", "delete"]:
+                        print(f"[System]: Executing {action} on {action_data.get('collection')}...")
                         result = await execute_mongo_query(action_data)
                         messages.append({"role": "assistant", "content": step_content})
                         messages.append({"role": "user", "content": f"Database Result: {result}\nFormulate final answer."})
-                        print(f"[LOG] Query Executed: {action_data.get('collection')}")
+                        print(f"[LOG] Action Executed: {action} on '{action_data.get('collection')}'")
                         continue
                 
                 # If we reached here without a 'continue', it's the final answer

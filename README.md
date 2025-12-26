@@ -1,17 +1,26 @@
 # 🤖 MongoDB AI Assistant
 
-A high-performance, modular, and intelligent chatbot designed to query MongoDB databases using natural language. Built with **OpenRouter (OLMo 32B)** and **FastAPI**.
+A high-performance, **asynchronous**, and intelligent chatbot designed to manage MongoDB databases using natural language. Built with a modular **FastAPI** backend and a premium **Vue 3** frontend.
 
 ## 🚀 Key Features
 
-- **Natural Language to NoSQL**: Translates human questions into complex MongoDB queries.
-- **Premium Vue Frontend**: Modern, glassmorphic UI with real-time streaming answers.
-- **Lightning Fast Performance**:
-    - **Single-Route Logic**: Merges routing and query generation.
-    - **Streaming Responses**: Real-time output in both CLI and Web UI.
-    - **Semantic Caching**: Instant answers for repeat questions.
-    - **Schema Pruning**: Minimized context window for faster inference.
-- **Modular Architecture**: Clearly separated `front-end` and `back-end`.
+- **Full AI-Powered CRUD**:
+    - **Create**: Add records via natural language ("Add a user named Satya").
+    - **Read**: Dynamic querying with fuzzy field mapping.
+    - **Update**: Precise data modification ("Change the status of student X to graduated").
+    - **Delete**: Safely remove records using precise AI-generated filters.
+- **Search Intelligence (Dynamic Few-Shot)**:
+    - Automatically injects high-quality query patterns based on your question.
+    - Handles field ambiguity (searching names across `name`, `username`, and `email` simultaneously).
+- **Strict Truth Policy**:
+    - Zero Hallucination: The AI is forbidden from inventing data or using placeholders.
+    - Verified Results: Only answers based on real database records.
+- **Scalable Async Architecture**:
+    - **FastAPI / Motor**: Fully non-blocking I/O for high concurrency.
+    - **Streaming API**: Real-time response generation with internal logs suppressed for a clean UI.
+- **Performance Optimizations**:
+    - **Semantic Caching**: Instant sub-millisecond responses for repeated questions.
+    - **Dynamic Limits**: Configurable result caps (defaulting to 50) for fast, safe data retrieval.
 
 ---
 
@@ -20,47 +29,52 @@ A high-performance, modular, and intelligent chatbot designed to query MongoDB d
 ```text
 CHATBOT/
 ├── back-end/
-│   ├── src/             # Core logic (cache, database, engine, etc.)
-│   ├── app.py           # FastAPI Web API
+│   ├── src/             # Core Logic
+│   │   ├── config.py    # Global settings & Model Selection
+│   │   ├── database.py  # Async MongoDB Connection
+│   │   ├── engine.py    # Prompt Orchestrator (The "Brain")
+│   │   ├── examples.py  # Few-Shot Pattern Library
+│   │   └── schema.py    # Dynamic Schema Analysis
+│   ├── app.py           # FastAPI Web API (Streaming)
 │   ├── chat_cli.py      # Console Interface
-│   ├── .env             # Backend secrets
-│   └── requirements.txt # Python dependencies
+│   └── .env             # Backend secrets (API Keys, URI)
 ├── front-end/
-│   ├── src/             # Vue 3 components and logic
-│   ├── .env             # Frontend config (VITE_API_URL)
-│   └── package.json     # Node dependencies
+│   ├── src/             # Vue 3 / Vite UI components
+│   └── .env             # Frontend config (VITE_API_URL)
 └── README.md
 ```
 
 ---
 
-## 🛠️ How to Start the Application
+## 🛠️ Getting Started
 
-### 1. Start the Back-end
-Open a terminal and run:
+### 1. Backend Setup
 ```bash
 cd back-end
-# Install dependencies if you haven't:
 pip install -r requirements.txt
-# Run the API:
 python app.py
 ```
-*The API will be available at `http://localhost:8000`*
+*The API streams at `http://localhost:8000`*
 
-### 2. Start the Front-end
-Open a **second** terminal and run:
+### 2. Frontend Setup
 ```bash
 cd front-end
-# Install dependencies if you haven't:
 npm install
-# Run the dev server:
 npm run dev
 ```
-*The UI will be available at `http://localhost:5173` (or similar, check terminal output)*
+*The UI will be standardly available at `http://localhost:5173`*
 
 ---
 
-## ⚙️ Configuration
-- **Back-end**: Edit `back-end/.env` for DB URI and API Keys.
-- **Front-end**: Edit `front-end/.env` to point to the correct `VITE_API_URL`.
-- **Logic**: Edit `back-end/src/config.py` to change models or cache times.
+## ⚙️ Advanced Configuration (src/config.py)
+
+- **MODEL_NAME**: Switch between models (Mimo, Olmo, etc.) via OpenRouter.
+- **DEFAULT_LIMIT**: Controls how many records are returned (set to 50 by default).
+- **CACHE_TTL**: Adjust how long semantic answers stay in memory.
+- **MAX_STEPS**: Controls the maximum recursion for complex multi-step queries.
+
+---
+
+## 🛡️ Safety & Consistency
+- **Precision First**: Update and Delete operations require a specific filter to prevent accidental bulk database changes.
+- **Clean UI**: Technical JSON orchestration blocks are logged to the backend console rather than cluttering the user's chat.

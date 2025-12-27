@@ -1,14 +1,14 @@
 <script setup>
-import Sidebar from './components/Sidebar.vue'
-import ChatInterface from './components/ChatInterface.vue'
+import TestArena from './components/TestArena.vue'
+import FloatingChat from './components/FloatingChat.vue'
 import { useChat } from './composables/useChat'
 
-const { messages, collections, isStreaming, isConnected, sendMessage } = useChat()
+const { messages, isStreaming, sendMessage } = useChat()
 </script>
 
 <template>
-  <Sidebar :collections="collections" :isConnected="isConnected" />
-  <ChatInterface 
+  <TestArena />
+  <FloatingChat 
     :messages="messages" 
     :isStreaming="isStreaming" 
     @send="sendMessage" 
@@ -16,5 +16,9 @@ const { messages, collections, isStreaming, isConnected, sendMessage } = useChat
 </template>
 
 <style>
-/* Global styles are in style.css */
+/* Global styles */
+body {
+  margin: 0;
+  overflow-y: auto;
+}
 </style>

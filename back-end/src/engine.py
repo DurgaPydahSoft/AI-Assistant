@@ -1,4 +1,5 @@
 import json
+import re
 from src.database import db
 from src.config import Config
 from src.schema import get_collection_names, get_specific_collection_schema
@@ -10,7 +11,9 @@ DB_COLS: {collections}
 PROTOCOL:
 1. [Schema Missing] -> Output: ```json {{ "action": "get_schema", "collections": ["..."] }} ```
 2. [Data Needed] -> Output: ```json {{ "action": "query|insert|update|delete", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "document": {{}}, "update": {{}} }} ```
-3. [Data Available] -> Speak ONLY from seen "Database Result".
+3. [DOM Click] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "click" }} ```
+4. [DOM Type] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "type", "value": "..." }} ```
+5. [Data Available] -> Speak ONLY from seen "Database Result".
 
 STRICT TRUTH POLICY:
 - ❌ NEVER invent data or use placeholders (e.g., example.com).
@@ -45,13 +48,29 @@ async def get_system_prompt(user_message=""):
     if any(k in msg_low for k in ["find", "search", "who is", "email", "phone", "contact", "name"]):
         selected_examples += EXAMPLES_BY_CATEGORY["search"]
         
-    # Default to search if nothing else matched but we have content
+    # Default to search if nothing else matched but we hav
+    # e content
     if not selected_examples and user_message:
         selected_examples = EXAMPLES_BY_CATEGORY["search"]
 
+    
+    # UI Context for Prototype
+    ui_context = """
+    UI OBJECTS AVAILABLE:
+    - Button 1: id="#btn-1" (Launch Sequence)
+    - Button 2: id="#btn-2" (Toggle Shields)
+    - Button 3: id="#btn-3" (Emergency Vent)
+    
+    FORM FIELDS:
+    - Name: id="#input-name"
+    - Email: id="#input-email"
+    - Bio: id="#input-bio"
+    - Register Button: id="#btn-submit"
+    """
+
     return SYSTEM_PROMPT_TEMPLATE.format(
         collections=all_cols, 
-        examples=selected_examples,
+        examples=selected_examples + ui_context,
         limit=Config.DEFAULT_LIMIT
     )
 
@@ -105,19 +124,29 @@ async def execute_mongo_query(query_data_dict):
     except Exception as e:
         return f"Database Error: {str(e)}"
 
-def extract_json_action(content):
-    action_data = None
-    if "```json" in content:
-        try:
-            start = content.find("```json") + 7
-            end = content.find("```", start)
-            action_data = json.loads(content[start:end].strip())
-        except: pass
+def extract_json_actions(content):
+    actions = []
+    # 1. Try to find all markdown json blocks
+    # Use regex to find contents between ```json and ```
+    matches = re.findall(r"```json(.*?)```", content, re.DOTALL)
     
-    if not action_data and "{" in content and "}" in content:
+    for match in matches:
         try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            action_data = json.loads(content[start:end].strip())
+            data = json.loads(match.strip())
+            actions.append(data)
+        except:
+            pass
+            
+    # 2. If no markdown blocks, try to parse the whole string or find outer braces
+    if not actions and "{" in content and "}" in content:
+        try:
+             # Fallback: try to find the first valid JSON object
+             # This is a bit brittle for multiple objects without delimiters
+             # So we prioritize the markdown blocks.
+             start = content.find("{")
+             end = content.rfind("}") + 1
+             data = json.loads(content[start:end].strip())
+             actions.append(data)
         except: pass
-    return action_data
+        
+    return actions

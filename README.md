@@ -78,3 +78,21 @@ npm run dev
 ## 🛡️ Safety & Consistency
 - **Precision First**: Update and Delete operations require a specific filter to prevent accidental bulk database changes.
 - **Clean UI**: Technical JSON orchestration blocks are logged to the backend console rather than cluttering the user's chat.
+
+---
+
+## 🔌 Integration Guide
+
+To embed this chatbot into another application (e.g., an internal HR Portal or Dashboard):
+
+1.  **Add Script**:
+    ```html
+    <script type="module" src="https://your-chatbot.vercel.app/chatbot.js"></script>
+    ```
+
+2.  **Add Widget**:
+    ```html
+    <ai-chatbot></ai-chatbot>
+    ```
+
+*Note: Replace `your-chatbot.vercel.app` with your actual Vercel deployment URL.*

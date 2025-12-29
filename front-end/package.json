@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp ../examples/embed_demo.html dist/index.html",
     "preview": "vite preview"
   },
   "dependencies": {

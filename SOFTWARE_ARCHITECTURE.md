@@ -10,19 +10,19 @@ The **MongoDB AI Agent** is a hybrid "Agentic" application that combinse natural
 
 ```mermaid
 graph TD
-    User[End User] -->|Interacts| Widget[<ai-chatbot> Widget]
+    User[End User] -->|Interacts| Widget[Chatbot Widget]
     
-    subgraph "Frontend (Host App)"
-        Widget -->|Shadow DOM| VueApp[Vue 3 Application]
-        VueApp -->|Render| ChatUI[Floating Chat Interface]
-        VueApp -->|DOM Actions| HostPage[Host Page (Buttons/Forms)]
+    subgraph Frontend
+        Widget -->|Shadow DOM| VueApp[Vue 3 App]
+        VueApp -->|Render| ChatUI[Chat Interface]
+        VueApp -->|DOM Actions| HostPage[Host Page Elements]
     end
     
-    subgraph "Backend (API)"
-        ChatUI -->|POST /chat| FastAPI[FastAPI Server]
-        FastAPI -->|Prompt| Engine[Engine.py (Logic)]
+    subgraph Backend
+        ChatUI -->|POST chat| FastAPI[FastAPI Server]
+        FastAPI -->|Prompt| Engine[Engine Logic]
         Engine -->|Context| Mongo[MongoDB]
-        Engine -->|Inference| LLM[LLM Cloud (OpenAI/Compatible)]
+        Engine -->|Inference| LLM[LLM Cloud]
     end
 ```
 

@@ -13,7 +13,8 @@ export default defineConfig({
       fileName: 'chatbot'
     },
     define: {
-      'process.env': {}
+      'process.env': {},
+      'process': { env: {} }
     }
   }
 })

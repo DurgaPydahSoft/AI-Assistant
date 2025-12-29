@@ -16,16 +16,21 @@ app = FastAPI(title="MongoDB AI Assistant API")
 # Add CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with your frontend URL
+    allow_origins=["*"], # For strict security in production, replace with: os.getenv("ALLOWED_ORIGINS", "*").split(",")
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+    ui_context: str = None  # Optional field for UI context
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():
-        messages = [{"role": "system", "content": await get_system_prompt(request.message)}] + request.history + [{"role": "user", "content": request.message}]
+        messages = [{"role": "system", "content": await get_system_prompt(request.message, request.ui_context)}] + request.history + [{"role": "user", "content": request.message}]
         
         # 1. Try Cache First
         from src.cache import chat_cache

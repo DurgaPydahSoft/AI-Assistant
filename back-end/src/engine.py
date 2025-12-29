@@ -31,7 +31,7 @@ RULES:
 - Precision: ALWAYS use specific filters for Update/Delete to avoid bulk accidental changes.
 """
 
-async def get_system_prompt(user_message=""):
+async def get_system_prompt(user_message="", ui_context=""):
     all_cols = await get_collection_names(db)
     
     # Dynamic Example Selection
@@ -53,24 +53,12 @@ async def get_system_prompt(user_message=""):
     if not selected_examples and user_message:
         selected_examples = EXAMPLES_BY_CATEGORY["search"]
 
-    
-    # UI Context for Prototype
-    ui_context = """
-    UI OBJECTS AVAILABLE:
-    - Button 1: id="#btn-1" (Launch Sequence)
-    - Button 2: id="#btn-2" (Toggle Shields)
-    - Button 3: id="#btn-3" (Emergency Vent)
-    
-    FORM FIELDS:
-    - Name: id="#input-name"
-    - Email: id="#input-email"
-    - Bio: id="#input-bio"
-    - Register Button: id="#btn-submit"
-    """
+    # Use provided UI Context or empty
+    final_ui_context = ui_context if ui_context else "UI INTERACTION: No specific UI context provided. Do not suggest DOM actions unless user strictly specifies selectors."
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         collections=all_cols, 
-        examples=selected_examples + ui_context,
+        examples=selected_examples + "\n" + final_ui_context,
         limit=Config.DEFAULT_LIMIT
     )
 

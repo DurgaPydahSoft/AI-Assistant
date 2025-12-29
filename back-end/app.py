@@ -27,6 +27,10 @@ class ChatRequest(BaseModel):
     history: list = []
     ui_context: str = None  # Optional field for UI context
 
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the MongoDB AI Assistant API!"}
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     async def event_generator():

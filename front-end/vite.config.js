@@ -11,10 +11,10 @@ export default defineConfig({
       entry: './src/main.js',
       name: 'AiChatbot',
       fileName: 'chatbot'
-    },
-    define: {
-      'process.env': {},
-      'process': { env: {} }
     }
+  },
+  define: {
+    'process.env': {},
+    'process': { env: {} }
   }
 })

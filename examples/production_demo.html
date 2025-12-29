@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Service Demo</title>
+    <!-- Use correct production paths relative to dist/ -->
+    <!-- Styles are now bundled in chatbot.js -->
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        h1 {
+            color: #334155;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: #cbd5e1;
+            color: #1e293b;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            filter: brightness(0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>HR Portal (Host Application)</h1>
+    <p>This is a simulated external application hosting the chatbot widget.</p>
+
+    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button id="approve-btn" style="background: #10b981; color: white;">Approve Request</button>
+        <button id="reject-btn" style="background: #ef4444; color: white;">Reject Request</button>
+    </div>
+
+    <!-- Production Script -->
+    <script type="module" src="./chatbot.js"></script>
+
+    <!-- Widget Element -->
+    <ai-chatbot></ai-chatbot>
+</body>
+
+</html>

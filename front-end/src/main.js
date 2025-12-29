@@ -1,5 +1,10 @@
-import { createApp } from 'vue'
-import './style.css'
+import { defineCustomElement } from 'vue'
+import styles from './style.css?inline'
 import App from './App.vue'
 
-createApp(App).mount('#app')
+// Inject styles into the shadow DOM of the custom element
+App.styles = [styles]
+
+const ChatbotElement = defineCustomElement(App)
+
+customElements.define('ai-chatbot', ChatbotElement)

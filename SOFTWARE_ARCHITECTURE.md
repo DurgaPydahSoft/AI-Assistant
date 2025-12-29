@@ -12,7 +12,7 @@ The **MongoDB AI Agent** is a hybrid "Agentic" application that combinse natural
 graph TD
     User[End User] -->|Interacts| Widget[<ai-chatbot> Widget]
     
-    subgraph "Frontend ("Host App")"
+    subgraph "Frontend (Host App)"
         Widget -->|Shadow DOM| VueApp[Vue 3 Application]
         VueApp -->|Render| ChatUI[Floating Chat Interface]
         VueApp -->|DOM Actions| HostPage[Host Page (Buttons/Forms)]

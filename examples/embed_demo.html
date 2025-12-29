@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Third-Party App Demo</title>
+    <!-- 1. Include Styles (or bundle them) -->
+    <link rel="stylesheet" href="../front-end/src/style.css">
+    <style>
+        body { font-family: sans-serif; padding: 2rem; background: #f0f0f0; color: #333; }
+        h1 { color: #2c3e50; }
+        button { padding: 10px 20px; font-size: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>HR Portal (Host Application)</h1>
+    <p>This mimics a third-party application where the chatbot is embedded.</p>
+    
+    <button id="approve-btn">Approve Request</button>
+    <button id="reject-btn" style="background: red; color: white;">Reject Request</button>
+
+    <!-- 2. Mount the Widget -->
+    <!-- Ideally this script comes from your Production URL -->
+    <script type="module" src="../front-end/src/main.js"></script>
+    
+    <!-- 3. Use the Custom Element -->
+    <ai-chatbot></ai-chatbot>
+
+    <script>
+        // Optional: Inject Context from Host App
+        // This prototype doesn't automatically look for window.context yet,
+        // but you would implement that in useChat.js or pass it as a prop.
+        console.log("Host App Loaded");
+    </script>
+</body>
+</html>

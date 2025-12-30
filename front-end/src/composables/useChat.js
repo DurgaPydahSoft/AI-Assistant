@@ -1,16 +1,14 @@
 import { ref } from 'vue'
 
 export function useChat() {
-  const messages = ref([
-    { role: 'assistant', content: 'Systems online. Ready for autonomous interaction.' }
-  ])
+  const messages = ref([])
   const isStreaming = ref(false)
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
   // --- DOM Action Executor ---
   const executeDOMAction = async (action) => {
     console.log('[Agent] Executing DOM Action:', action)
-    
+
     if (action.type === 'click') {
       const el = document.querySelector(action.target)
       if (el) {
@@ -64,7 +62,7 @@ export function useChat() {
         // 2. Type Simulation
         const value = action.value || ''
         let i = 0
-        
+
         const typeChar = () => {
           if (i < value.length) {
             // Programmatically set value for Vue/React reactivity
@@ -79,7 +77,7 @@ export function useChat() {
             }, 500)
           }
         }
-        
+
         typeChar()
       }
     }
@@ -87,9 +85,9 @@ export function useChat() {
 
   const sendMessage = async (userMsg) => {
     if (!userMsg.trim()) return
-    
+
     messages.value.push({ role: 'user', content: userMsg })
-    
+
     // History context (simplified for prototype)
     const history = messages.value.slice(-6).map(m => ({
       role: m.role,
@@ -97,8 +95,10 @@ export function useChat() {
     }))
 
     const aiMessageIndex = messages.value.length
-    messages.value.push({ role: 'assistant', content: '' })
+    // Don't push empty message yet to avoid double loading indicators
+    // messages.value.push({ role: 'assistant', content: '' }) 
     isStreaming.value = true
+    let aiMessageStarted = false
 
     try {
       const response = await fetch(`${API_URL}/chat`, {
@@ -110,42 +110,51 @@ export function useChat() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        
+
+        // On first chunk of data, initialize the message in UI
+        if (!aiMessageStarted) {
+          isStreaming.value = false // Hide loading dots
+          messages.value.push({ role: 'assistant', content: '' })
+          aiMessageStarted = true
+        }
+
         const chunk = decoder.decode(value, { stream: true })
         buffer += chunk
-        
+
+        // Remove [Cached Answer] tag if present
+        buffer = buffer.replace('[Cached Answer]', '')
+
         // Check for DOM hooks like [DOM_ACTION]{...}[/DOM_ACTION]
-        // This is a simple regex state machine for the stream
-        // Check for DOM hooks and process ALL of them in the buffer
-        // using a loop to ensure we don't miss any if two come in one chunk
         let match
         while ((match = buffer.match(/\[DOM_ACTION\](.*?)\[\/DOM_ACTION\]/s))) {
           const jsonStr = match[1]
           try {
             const action = JSON.parse(jsonStr)
             executeDOMAction(action)
-            // Remove the hook from the buffer so it doesn't show in UI
             buffer = buffer.replace(match[0], '')
           } catch (e) {
             console.error('Failed to parse DOM action', e)
-            // Prevent infinite loop if parsing fails but regex matched
-            // by removing the bad block anyway, or breaking.
-            // Safest is to remove it.
             buffer = buffer.replace(match[0], '')
           }
         }
 
-        // Update UI with the clean buffer (progressive)
-        // Note: Ideally we should only add the "new" part of the buffer if we stripped something,
-        // but for this prototype, replacing content is fine.
-        messages.value[aiMessageIndex].content = buffer
+        // Update UI with the clean buffer
+        const currentMsgIndex = messages.value.length - 1
+        if (currentMsgIndex >= 0) {
+          messages.value[currentMsgIndex].content = buffer
+        }
       }
     } catch (e) {
-      messages.value[aiMessageIndex].content = `Error: ${e.message}`
+      if (!aiMessageStarted) {
+        messages.value.push({ role: 'assistant', content: `Error: ${e.message}` })
+      } else {
+        const currentMsgIndex = messages.value.length - 1
+        messages.value[currentMsgIndex].content += `\n[Error: ${e.message}]`
+      }
     } finally {
       isStreaming.value = false
     }

@@ -1,14 +1,351 @@
 <script setup>
-import { ref, onUpdated, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, onUpdated, nextTick, computed, watch } from 'vue'
 import { Send, Bot, User, Sparkles, X, MessageSquare, Sun, Moon } from 'lucide-vue-next'
+import { DotLottieVue } from '@lottiefiles/dotlottie-vue'
+import { parse } from 'marked'
 
-const props = defineProps(['messages', 'isStreaming'])
+const props = defineProps(['messages', 'isStreaming', 'initialTheme', 'themes'])
 const emit = defineEmits(['send'])
 
-const isOpen = ref(true)
+const availableThemes = computed(() => {
+  let themesArr = []
+  if (typeof props.themes === 'string') {
+    try {
+      themesArr = JSON.parse(props.themes)
+    } catch (e) {
+      console.error('Failed to parse themes prop:', e)
+      themesArr = []
+    }
+  } else {
+    themesArr = props.themes || []
+  }
+
+  if (themesArr.length === 0) {
+    themesArr = [
+      { id: 'rose', color: '#f43f5e' },
+      { id: 'black', color: '#000000' },
+      { id: 'emerald', color: '#10b981' },
+      { id: 'blue', color: '#3b82f6' }
+    ]
+  }
+
+  // Ensure every theme has an ID (use color if missing) and preserve options
+  return themesArr.map(t => ({
+    ...t,
+    id: t.id || t.color,
+    color: t.color
+  }))
+})
+const isOpen = ref(false)
 const input = ref('')
 const scrollRef = ref(null)
-const isDarkMode = ref(true)
+const isDarkMode = ref(false)
+const selectedTheme = ref(props.initialTheme || null)
+const showMascot = ref(false)
+const mascotText = ref('Hi! 👋')
+let mascotTimer = null
+
+const mascotMessages = [
+  'Hi! 👋',
+  'Need help? 🤖',
+  'Ask me anything! ✨',
+  "I'm here! 💬"
+]
+
+// The fallback theme to use if no initial theme is provided and user hasn't selected one yet.
+// This is the "default colour" defined in the code.
+const SYSTEM_DEFAULT_THEME = { id: 'rose', color: '#f43f5e' }
+
+const isAtRightSide = computed(() => {
+  return position.value.x > window.innerWidth / 2
+})
+
+const isAtTopSide = computed(() => {
+  return position.value.y < 100
+})
+
+const selectedThemeObject = computed(() => {
+  // 1. If user explicitly selected a theme (or passed initial-theme prop), try to match it in their list
+  if (selectedTheme.value) {
+    const found = availableThemes.value.find(t => t.id === selectedTheme.value)
+    if (found) return found
+    
+    // If not found in list but was initial-theme, maybe it's a direct color value? 
+    // Return a temp object for it so it renders
+    return { id: selectedTheme.value, color: selectedTheme.value }
+  }
+  
+  // 2. If NO selection made yet, use the SYSTEM_DEFAULT_THEME (Rose) defined here in code.
+  // This ensures the site starts with "our default colour" until the user manually changes it.
+  return SYSTEM_DEFAULT_THEME
+})
+
+const accentColor = computed(() => {
+  return selectedThemeObject.value?.color || SYSTEM_DEFAULT_THEME.color
+})
+
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  return parse(text)
+}
+
+// Color Utility Functions
+const getColorData = (colorInput) => {
+  let r = 0, g = 0, b = 0
+  let hex = colorInput
+
+  // 1. Robust parsing using browser capability
+  // Create a dummy element to let the browser parse color names/formats
+  const div = document.createElement('div')
+  div.style.color = colorInput
+  document.body.appendChild(div)
+  const computedColor = window.getComputedStyle(div).color
+  document.body.removeChild(div)
+
+  // Parse "rgb(r, g, b)"
+  const rgbMatch = computedColor.match(/\d+/g)
+  if (rgbMatch && rgbMatch.length >= 3) {
+    r = parseInt(rgbMatch[0])
+    g = parseInt(rgbMatch[1])
+    b = parseInt(rgbMatch[2])
+  }
+  
+  // 2. RGB to HSL
+  const rNorm = r / 255; 
+  const gNorm = g / 255; 
+  const bNorm = b / 255;
+  const max = Math.max(rNorm, gNorm, bNorm), min = Math.min(rNorm, gNorm, bNorm);
+  let h, s, l = (max + min) / 2;
+
+  if (max === min) { h = s = 0; } 
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
+      case gNorm: h = (bNorm - rNorm) / d + 2; break;
+      case bNorm: h = (rNorm - gNorm) / d + 4; break;
+    }
+    h /= 6;
+  }
+  
+  return { h: h * 360, s: s * 100, l: l * 100, r, g, b }
+}
+
+const complementaryInfo = computed(() => {
+  // 1. Check for custom config in the theme object
+  if (selectedThemeObject.value) {
+    if (isDarkMode.value && selectedThemeObject.value.dark) return selectedThemeObject.value.dark
+    if (!isDarkMode.value && selectedThemeObject.value.light) return selectedThemeObject.value.light
+  }
+
+  // 2. Dynamic Calculation
+  const { h, s, l, r, g, b } = getColorData(accentColor.value)
+  
+
+  
+  // Use Analogous/Monochromatic for Background (cleaner look)
+  // instead of complementary which can be jarring.
+  const bgH = h 
+  
+  // Calculate Contrast YIQ for Text on Accent (Black or White)
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+  const onAccent = yiq >= 128 ? '#000000' : '#ffffff'
+
+  // Calculate Readable Accent (for outlines/icons on background)
+  let readableAccent = accentColor.value
+  if (!isDarkMode.value && l > 45) {
+    readableAccent = `hsl(${h}, ${Math.min(s, 90)}%, 35%)`
+  } else if (isDarkMode.value && l < 50) {
+    readableAccent = `hsl(${h}, ${Math.min(s, 90)}%, 65%)`
+  }
+
+  if (isDarkMode.value) {
+    // Dark Mode Params
+    return {
+      bg: `hsl(${bgH}, 20%, 10%)`,
+      text: `hsl(${h}, 80%, 95%)`,
+      onAccent,
+      readableAccent
+    }
+  } else {
+    // Light Mode Params
+    return {
+      bg: `hsl(${bgH}, 30%, 97%)`, // Very light tint of main color
+      text: `hsl(${h}, 40%, 20%)`,
+      onAccent,
+      readableAccent
+    }
+  }
+})
+
+
+const lottieFilter = computed(() => {
+  const { h } = getColorData(accentColor.value)
+  // The original robot is Blue (approx 220deg).
+  // We rotate from 220 to target 'h'.
+  const rotation = h - 220
+  return {
+    filter: `hue-rotate(${rotation}deg)`
+  }
+})
+
+// Draggable Logic
+const ICON_SIZE = 60
+const MARGIN = 20
+
+const getInitialPos = () => {
+  const saved = localStorage.getItem('chatbot_position')
+  if (saved) {
+    try { return JSON.parse(saved) } catch(e) {}
+  }
+  // Default to bottom right
+  return { 
+    x: window.innerWidth - ICON_SIZE - MARGIN, 
+    y: window.innerHeight - ICON_SIZE - MARGIN 
+  }
+}
+
+const position = ref(getInitialPos())
+const isDragging = ref(false)
+const dragOffset = ref({ x: 0, y: 0 })
+const hasMoved = ref(false)
+const isLoaded = ref(false)
+
+const wrapperStyle = computed(() => {
+  const style = {
+    left: `${position.value.x}px`,
+    top: `${position.value.y}px`,
+  }
+  if (!isDragging.value && isLoaded.value) {
+    style.transition = 'left 0.5s cubic-bezier(0.19, 1, 0.22, 1), top 0.5s cubic-bezier(0.19, 1, 0.22, 1)'
+  }
+  return style
+})
+
+const startDrag = (e) => {
+  // Only drag from the toggle button or header
+  if (!e.target.closest('.toggle-btn') && !e.target.closest('.header')) return
+
+  // Prevent dragging when interacting with header controls (theme picker, buttons)
+  if (e.target.closest('.header-actions') || e.target.closest('.theme-picker')) return
+  
+  isDragging.value = true
+  hasMoved.value = false
+  const event = e.type === 'touchstart' ? e.touches[0] : e
+  
+  dragOffset.value = {
+    x: event.clientX - position.value.x,
+    y: event.clientY - position.value.y
+  }
+  
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+  window.addEventListener('touchmove', onDrag, { passive: false })
+  window.addEventListener('touchend', stopDrag)
+}
+
+const onDrag = (e) => {
+  if (!isDragging.value) return
+  hasMoved.value = true
+  const event = e.type === 'touchmove' ? e.touches[0] : e
+  
+  let newX = event.clientX - dragOffset.value.x
+  let newY = event.clientY - dragOffset.value.y
+  
+  // Boundary checks (stay within screen)
+  const windowW = window.innerWidth
+  const windowH = window.innerHeight
+  const elementW = isOpen.value ? 350 : ICON_SIZE
+  const elementH = isOpen.value ? 500 : ICON_SIZE
+
+  newX = Math.max(0, Math.min(newX, windowW - elementW))
+  newY = Math.max(0, Math.min(newY, windowH - elementH))
+  
+  position.value = { x: newX, y: newY }
+  
+  if (e.type === 'touchmove') e.preventDefault()
+}
+
+const savePosition = () => {
+  localStorage.setItem('chatbot_position', JSON.stringify(position.value))
+}
+
+const snapToEdges = () => {
+  if (isOpen.value) return
+
+  const windowW = window.innerWidth
+  if (position.value.x < windowW / 2) {
+    position.value.x = MARGIN
+  } else {
+    position.value.x = windowW - ICON_SIZE - MARGIN
+  }
+  savePosition()
+}
+
+const stopDrag = () => {
+  if (!isDragging.value) return
+  isDragging.value = false
+  
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+  window.removeEventListener('touchmove', onDrag)
+  window.removeEventListener('touchend', stopDrag)
+  
+  snapToEdges()
+}
+
+const handleToggle = () => {
+  if (hasMoved.value) return
+  
+  const wasOpen = isOpen.value
+  isOpen.value = !isOpen.value
+  
+  const CHAT_W = 350
+  const CHAT_H = 500
+  
+  if (wasOpen) {
+    // Closing: Anchor to bottom-right
+    // Current pos is top-left of the window
+    // We want the button's bottom-right to match the window's bottom-right
+    // Button is at: newX, newY. Button size: ICON_SIZE
+    // Window Bottom-Right: pos.x + CHAT_W, pos.y + CHAT_H
+    // Button Bottom-Right: newX + ICON_SIZE, newY + ICON_SIZE
+    // Equating them: newY = pos.y + CHAT_H - ICON_SIZE
+    
+    position.value.y = position.value.y + CHAT_H - ICON_SIZE
+    position.value.x = position.value.x // Keep X aligned to side usually, or adjust: position.value.x + CHAT_W - ICON_SIZE
+    
+    // If it was on the right side, keep it on right. If left, keep left.
+    // Simpler visual feel: shift Y down.
+    
+    // We also need to fix X if we want true bottom-right anchoring:
+    position.value.x = position.value.x + CHAT_W - ICON_SIZE
+
+    nextTick(() => {
+      snapToEdges()
+    })
+  } else {
+    // Opening: Expand visually upwards/leftwards
+    // New Top-Left needs to be such that Bottom-Right stays put
+    // newY = pos.y - (CHAT_H - ICON_SIZE)
+    position.value.y = position.value.y - (CHAT_H - ICON_SIZE)
+    position.value.x = position.value.x - (CHAT_W - ICON_SIZE)
+    
+    // Boundary checks to ensure it doesn't go off-screen
+    const windowW = window.innerWidth
+    const windowH = window.innerHeight
+    
+    nextTick(() => {
+      if (position.value.x < MARGIN) position.value.x = MARGIN
+      if (position.value.y < MARGIN) position.value.y = MARGIN
+      if (position.value.x + CHAT_W > windowW - MARGIN) position.value.x = windowW - CHAT_W - MARGIN
+      if (position.value.y + CHAT_H > windowH - MARGIN) position.value.y = windowH - CHAT_H - MARGIN
+      savePosition()
+    })
+  }
+}
+
 
 const handleSend = () => {
   if (!input.value.trim()) return
@@ -16,8 +353,79 @@ const handleSend = () => {
   input.value = ''
 }
 
-const toggleChat = () => isOpen.value = !isOpen.value
-const toggleTheme = () => isDarkMode.value = !isDarkMode.value
+const toggleTheme = (e) => {
+  e.stopPropagation()
+  isDarkMode.value = !isDarkMode.value
+}
+
+const handleResize = () => {
+  snapToEdges()
+}
+
+
+
+// Persistence & Initialization
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  
+  // Snap to edges on load if it was saved in a middle position (e.g. while open)
+  nextTick(() => {
+    snapToEdges()
+    // Small delay before enabling transitions to prevent the "jump" being animated
+    setTimeout(() => {
+      isLoaded.value = true
+    }, 100)
+  })
+
+  // Load saved preferences
+  const savedTheme = localStorage.getItem('chatbot_theme')
+  const savedMode = localStorage.getItem('chatbot_dark_mode')
+  
+  if (savedTheme) {
+    selectedTheme.value = savedTheme
+  }
+  
+  if (savedMode !== null) {
+    isDarkMode.value = savedMode === 'true'
+  }
+
+  // Mascot Animation Logic
+  const runMascotCycle = () => {
+    if (!isOpen.value) {
+      // Pick a random message
+      const randomIndex = Math.floor(Math.random() * mascotMessages.length)
+      mascotText.value = mascotMessages[randomIndex]
+      
+      showMascot.value = true
+      setTimeout(() => {
+        showMascot.value = false
+      }, 5000) // Show for 5 seconds
+    }
+  }
+
+  // Run immediately
+  runMascotCycle()
+
+  // Repeat every 10 seconds (5s active + 5s quiet)
+  mascotTimer = setInterval(runMascotCycle, 10000)
+})
+
+watch(selectedTheme, (newVal) => {
+  if (newVal) localStorage.setItem('chatbot_theme', newVal)
+})
+
+watch(isDarkMode, (newVal) => {
+  localStorage.setItem('chatbot_dark_mode', newVal)
+})
+
+watch(isOpen, (val) => {
+  if (val) showMascot.value = false
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (mascotTimer) clearInterval(mascotTimer)
+})
 
 onUpdated(async () => {
   await nextTick()
@@ -28,42 +436,162 @@ onUpdated(async () => {
 </script>
 
 <template>
-  <div class="floating-wrapper" :class="{ 'dark': isDarkMode, 'light': !isDarkMode }">
+  <div 
+    class="floating-wrapper" 
+    :class="{ 'dark': isDarkMode, 'light': !isDarkMode, 'dragging': isDragging }"
+    :style="wrapperStyle"
+    @mousedown="startDrag"
+    @touchstart="startDrag"
+  >
+    <!-- Robot Avatar SVG Definition (Global) -->
+    <svg width="0" height="0" style="position:absolute; pointer-events: none;">
+      <defs>
+        <linearGradient id="robo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color: #ffffff; stop-opacity: 0.9" />
+          <stop offset="50%" style="stop-color: #a0aec0; stop-opacity: 0.2" />
+          <stop offset="100%" style="stop-color: #1a202c; stop-opacity: 0.6" />
+        </linearGradient>
+        <filter id="robo-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.3)" />
+        </filter>
+      </defs>
+    </svg>
     <!-- Toggle Button -->
-    <button v-if="!isOpen" @click="toggleChat" class="toggle-btn">
-      <Bot :size="24" />
+    <button v-if="!isOpen" @click="handleToggle" class="toggle-btn">
+      <svg viewBox="0 0 100 100" class="avatar-icon" style="width: 70%; height: 70%;">
+        <!-- Head shape with 3D shadow -->
+        <rect x="15" y="15" width="70" height="60" rx="16" fill="var(--accent-color)" stroke="rgba(255,255,255,0.4)" stroke-width="3" filter="url(#robo-shadow)" />
+        <rect x="15" y="15" width="70" height="60" rx="16" fill="url(#robo-gradient)" style="mix-blend-mode: overlay;" />
+        
+        <!-- Screen/Face Area -->
+        <rect x="25" y="25" width="50" height="36" rx="8" fill="rgba(0,0,0,0.2)" />
+        
+        <!-- Eyes -->
+        <circle cx="38" cy="40" r="5" fill="#00ffcc" />
+        <circle cx="62" cy="40" r="5" fill="#00ffcc" />
+        
+        <!-- Mouth -->
+        <rect x="40" y="52" width="20" height="4" rx="2" fill="#00ffcc" opacity="0.6" />
+        
+        <!-- Antenna -->
+        <line x1="50" y1="15" x2="50" y2="5" stroke="var(--accent-color)" stroke-width="4" stroke-linecap="round" />
+        <circle cx="50" cy="5" r="5" fill="#ef4444" stroke="white" stroke-width="1" />
+      </svg>
       <span class="notification-dot" v-if="isStreaming"></span>
+
+      <!-- Mascot Animation -->
+      <div 
+        class="mascot-container" 
+        :class="{ 
+          'show': showMascot, 
+          'on-right': isAtRightSide, 
+          'on-left': !isAtRightSide,
+          'on-top': isAtTopSide,
+          'on-bottom': !isAtTopSide
+        }"
+      >
+        <div class="mascot-content">
+          <div v-if="!isAtTopSide" class="speech-bubble">
+            <span class="shaking-text">{{ mascotText }}</span>
+          </div>
+          <div class="mascot-toy" style="font-size: 40px; display: flex; align-items: center; justify-content: center;">
+            👋
+          </div>
+          <div v-if="isAtTopSide" class="speech-bubble">
+            <span class="shaking-text">{{ mascotText }}</span>
+          </div>
+        </div>
+      </div>
     </button>
 
     <!-- Chat Window -->
     <div v-else class="chat-window">
+
+
       <div class="header">
         <div class="agent-info">
-          <div class="avatar-sm">
-            <Bot :size="16" />
+          <div class="avatar-sm" style="background: transparent;">
+            <!-- 3D Robot Head Icon -->
+            <svg viewBox="0 0 100 100" class="avatar-icon">
+               <!-- Head shape with 3D shadow -->
+              <rect x="15" y="15" width="70" height="60" rx="16" fill="var(--accent-color)" stroke="rgba(255,255,255,0.4)" stroke-width="3" />
+              <rect x="15" y="15" width="70" height="60" rx="16" fill="url(#robo-gradient)" style="mix-blend-mode: overlay;" />
+              
+              <!-- Screen/Face Area -->
+              <rect x="25" y="25" width="50" height="36" rx="8" fill="rgba(0,0,0,0.2)" />
+              
+              <!-- Eyes -->
+              <circle cx="38" cy="40" r="5" fill="#00ffcc" />
+              <circle cx="62" cy="40" r="5" fill="#00ffcc" />
+              
+              <!-- Mouth -->
+              <rect x="40" y="52" width="20" height="4" rx="2" fill="#00ffcc" opacity="0.6" />
+              
+              <!-- Antenna -->
+              <line x1="50" y1="15" x2="50" y2="5" stroke="var(--accent-color)" stroke-width="4" stroke-linecap="round" />
+              <circle cx="50" cy="5" r="5" fill="#ef4444" stroke="white" stroke-width="1" />
+            </svg>
           </div>
           <span>Agent</span>
         </div>
         <div class="header-actions">
+          <div class="theme-picker">
+            <button 
+              v-for="theme in availableThemes" 
+              :key="theme.id"
+              class="theme-dot"
+              :style="{ background: theme.color }"
+              :class="{ active: selectedTheme === theme.id }"
+              @click.stop="selectedTheme = theme.id"
+            ></button>
+          </div>
           <button @click="toggleTheme" class="theme-toggle">
             <Sun v-if="isDarkMode" :size="16" />
             <Moon v-else :size="16" />
           </button>
-          <button @click="toggleChat" class="close-btn">
+          <button @click="handleToggle" class="close-btn">
             <X :size="16" />
           </button>
         </div>
       </div>
 
       <div class="messages-area" ref="scrollRef">
+        <!-- Welcome Agent Mascot -->
+        <div v-if="messages.length === 0" class="welcome-container">
+          <div class="teddy-bear">
+            <DotLottieVue
+              style="height: 100%; width: 100%;"
+              :style="lottieFilter"
+              autoplay
+              loop
+              src="https://lottie.host/4a08fb37-38ef-47b7-b591-43fb1cd7348f/MYfDBkJFK6.lottie"
+            />
+          </div>
+          <h3>Hi! I'm Agent</h3>
+          <p>Your friendly AI assistant. How can I help you today?</p>
+        </div>
+
         <div v-for="(msg, i) in messages" :key="i" 
              class="msg-row" :class="msg.role">
           <div v-if="msg.role === 'assistant'" class="avatar-xs">
-            <Bot :size="14" />
+            <!-- 3D Robot Head (Small) -->
+             <svg viewBox="0 0 100 100" class="avatar-icon">
+              <!-- Head shape with 3D shadow -->
+              <rect x="20" y="20" width="60" height="50" rx="12" fill="var(--accent-color)" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
+              <rect x="20" y="20" width="60" height="50" rx="12" fill="url(#robo-gradient)" style="mix-blend-mode: overlay;" />
+              <!-- Eyes -->
+              <circle cx="35" cy="40" r="6" fill="#000" />
+              <circle cx="35" cy="40" r="2" fill="#00ffcc" />
+              <circle cx="65" cy="40" r="6" fill="#000" />
+              <circle cx="65" cy="40" r="2" fill="#00ffcc" />
+              <!-- Mouth -->
+              <rect x="35" y="55" width="30" height="6" rx="3" fill="#333" />
+              <!-- Antenna -->
+              <line x1="50" y1="20" x2="50" y2="10" stroke="var(--accent-color)" stroke-width="3" />
+              <circle cx="50" cy="8" r="4" fill="#ef4444" />
+            </svg>
           </div>
-          <div class="bubble">
-            {{ msg.content }}
-          </div>
+          <div class="bubble markdown-content" v-html="renderMarkdown(msg.content)"></div>
         </div>
         
         <div v-if="isStreaming" class="msg-row assistant">
@@ -93,24 +621,33 @@ onUpdated(async () => {
 <style scoped>
 .floating-wrapper {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
   z-index: 1000;
   font-family: 'Inter', sans-serif;
+  touch-action: none;
+  user-select: none;
+  --dynamic-accent: v-bind(accentColor);
+  --dynamic-bg: v-bind('complementaryInfo.bg');
+  --dynamic-text: v-bind('complementaryInfo.text');
+  --on-accent: v-bind('complementaryInfo.onAccent');
+  --readable-accent: v-bind('complementaryInfo.readableAccent');
+}
+
+.floating-wrapper.dragging {
+  cursor: grabbing;
 }
 
 /* Light Mode */
 .floating-wrapper.light {
-  --bg-primary: rgba(255, 255, 255, 0.95);
-  --bg-secondary: rgba(249, 250, 251, 0.9);
-  --bg-tertiary: rgba(243, 244, 246, 0.8);
-  --text-primary: #111827;
+  --bg-primary: var(--dynamic-bg);
+  --bg-secondary: rgba(255, 255, 255, 0.5);
+  --bg-tertiary: rgba(0, 0, 0, 0.05);
+  --text-primary: var(--dynamic-text);
   --text-secondary: #4b5563;
-  --border-color: rgba(209, 213, 219, 0.5);
-  --accent-color: #4f46e5;
-  --accent-hover: #4338ca;
-  --user-bubble: #4f46e5;
-  --assistant-bubble: #f3f4f6;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --accent-color: var(--dynamic-accent);
+  --accent-hover: var(--dynamic-accent);
+  --user-bubble: var(--dynamic-accent);
+  --assistant-bubble: rgba(0, 0, 0, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.1);
   --shadow-strong: rgba(0, 0, 0, 0.15);
   --notification-dot: #ef4444;
@@ -118,15 +655,15 @@ onUpdated(async () => {
 
 /* Dark Mode */
 .floating-wrapper.dark {
-  --bg-primary: rgba(15, 23, 42, 0.95);
-  --bg-secondary: rgba(30, 41, 59, 0.9);
-  --bg-tertiary: rgba(51, 65, 85, 0.8);
-  --text-primary: #f1f5f9;
+  --bg-primary: var(--dynamic-bg);
+  --bg-secondary: rgba(0, 0, 0, 0.2);
+  --bg-tertiary: rgba(255, 255, 255, 0.05);
+  --text-primary: var(--dynamic-text);
   --text-secondary: #94a3b8;
   --border-color: rgba(255, 255, 255, 0.1);
-  --accent-color: #6366f1;
-  --accent-hover: #818cf8;
-  --user-bubble: #6366f1;
+  --accent-color: var(--dynamic-accent);
+  --accent-hover: var(--dynamic-accent);
+  --user-bubble: var(--dynamic-accent);
   --assistant-bubble: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
   --shadow-strong: rgba(0, 0, 0, 0.5);
@@ -141,7 +678,7 @@ onUpdated(async () => {
   background: var(--bg-primary);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
-  color: var(--accent-color);
+  color: var(--readable-accent);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -172,20 +709,48 @@ onUpdated(async () => {
   50% { opacity: 0.5; }
 }
 
+/* Mascot Styles */
+.mascot-container { position: absolute; opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; flex-direction: column; z-index: -1; will-change: transform, opacity; }
+.mascot-container.on-bottom { bottom: 100%; } .mascot-container.on-top { top: 100%; }
+.mascot-container.on-right { right: 0; align-items: flex-end; } .mascot-container.on-left { left: 0; align-items: flex-start; }
+
+/* Entry & Show States */
+.mascot-container.on-bottom.on-right, .mascot-container.on-bottom.on-left { transform: translateY(15px) scale(0.9); }
+.mascot-container.on-top.on-right, .mascot-container.on-top.on-left { transform: translateY(-15px) scale(0.9); }
+.mascot-container.show { opacity: 1; }
+.mascot-container.on-bottom.show { transform: translateY(-12px) scale(1); }
+.mascot-container.on-top.show { transform: translateY(12px) scale(1); }
+
+.mascot-content { display: flex; flex-direction: column; align-items: inherit; gap: 6px; }
+.mascot-container.show .mascot-content { animation: mascot-float 3s ease-in-out infinite; }
+.mascot-toy { width: 52px; height: 52px; filter: drop-shadow(0 6px 12px var(--shadow-strong)); margin: 0 4px; }
+.toy-svg { width: 100%; height: 100%; }
+
+.speech-bubble { background: var(--bg-primary); color: var(--text-primary); padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; box-shadow: 0 4px 12px var(--shadow-strong); border: 1px solid var(--border-color); position: relative; white-space: nowrap; animation: bubble-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.shaking-text { display: inline-block; animation: text-shake 2s ease-in-out infinite; transform-origin: center; }
+
+/* Dynamic Tail Positioning */
+.mascot-container.on-right .speech-bubble { border-bottom-right-radius: 2px; }
+.mascot-container.on-left .speech-bubble { border-bottom-left-radius: 2px; }
+.speech-bubble::after { content: ''; position: absolute; top: 100%; border-width: 6px; border-style: solid; border-color: var(--bg-primary) transparent transparent transparent; }
+.mascot-container.on-right .speech-bubble::after { right: 15px; } .mascot-container.on-left .speech-bubble::after { left: 15px; }
+.mascot-container.on-top .speech-bubble { margin-top: 8px; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+.mascot-container.on-top.on-right .speech-bubble { border-top-right-radius: 2px; } .mascot-container.on-top.on-left .speech-bubble { border-top-left-radius: 2px; }
+.mascot-container.on-top .speech-bubble::after { top: auto; bottom: 100%; border-color: transparent transparent var(--bg-primary) transparent; }
+
+/* Welcome Agent Styles */
+.welcome-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; flex: 1; text-align: center; padding: 2rem; color: var(--text-secondary); animation: fadeIn 0.5s ease-out; }
+.teddy-bear { width: 120px; height: 120px; position: relative; margin-bottom: 1rem; }
+
+.welcome-container h3 { color: var(--text-primary); margin: 0.5rem 0; font-size: 1.2rem; }
+.welcome-container p { font-size: 0.9rem; opacity: 0.8; max-width: 200px; }
+
+@keyframes mascot-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -8px, 0); } }
+@keyframes text-shake { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(2deg); } 50% { transform: rotate(-2deg); } 75% { transform: rotate(1deg); } }
+@keyframes bubble-pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
 /* Chat Window */
-.chat-window {
-  width: 350px;
-  height: 500px;
-  background: var(--bg-primary);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 50px var(--shadow-strong);
-  overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
+.chat-window { width: 350px; height: 500px; background: var(--bg-primary); backdrop-filter: blur(16px); border: 1px solid var(--border-color); border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 20px 50px var(--shadow-strong); overflow: hidden; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
@@ -193,15 +758,8 @@ onUpdated(async () => {
 }
 
 /* Header */
-.header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-}
+.header { padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); background: var(--bg-secondary); cursor: grab; }
+.header:active { cursor: grabbing; }
 
 .agent-info {
   display: flex;
@@ -219,13 +777,59 @@ onUpdated(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--on-accent);
+}
+
+.avatar-icon {
+  width: 80%;
+  height: 80%;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
 .header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
+}
+
+.theme-picker {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(128, 128, 128, 0.1);
+  padding: 6px;
+  border-radius: 99px;
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(4px);
+  max-width: 120px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  cursor: default; /* Override grab cursor */
+}
+
+.theme-picker::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.theme-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.theme-dot:hover {
+  transform: scale(1.1);
+}
+
+.theme-dot.active {
+  transform: scale(1.2);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .theme-toggle {
@@ -310,19 +914,62 @@ onUpdated(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--on-accent);
   flex-shrink: 0;
 }
 
 .bubble {
   padding: 0.75rem 1rem;
   border-radius: 12px;
-  max-width: 80%;
+  max-width: 85%;
   font-size: 0.9rem;
   line-height: 1.5;
   transition: all 0.2s;
   word-wrap: break-word;
+  overflow-wrap: break-word;
   animation: fadeIn 0.3s ease-out;
+}
+
+/* Markdown Styling */
+.markdown-content :deep(p) {
+  margin: 0 0 0.5em 0;
+}
+.markdown-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.markdown-content :deep(ul), .markdown-content :deep(ol) {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  list-style: disc;
+}
+.markdown-content :deep(li) {
+  margin-bottom: 0.25em;
+}
+.markdown-content :deep(strong) {
+  font-weight: 600;
+}
+.markdown-content :deep(code) {
+  background: rgba(127, 127, 127, 0.15); /* Slightly darker for visibility */
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+.markdown-content :deep(pre) {
+  background: rgba(0,0,0,0.05);
+  padding: 0.8rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.markdown-content :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+.markdown-content :deep(h1), .markdown-content :deep(h2), .markdown-content :deep(h3) {
+  margin: 0.5em 0;
+  font-size: 1.1em;
+  font-weight: 700;
 }
 
 @keyframes fadeIn {
@@ -338,7 +985,7 @@ onUpdated(async () => {
 
 .msg-row.user .bubble {
   background: var(--user-bubble);
-  color: white;
+  color: var(--on-accent);
   border-bottom-right-radius: 2px;
 }
 
@@ -374,7 +1021,7 @@ input:focus {
 
 .input-area button {
   background: var(--accent-color);
-  color: white;
+  color: var(--on-accent);
   border: none;
   width: 40px;
   height: 40px;

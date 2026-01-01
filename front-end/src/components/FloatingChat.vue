@@ -43,6 +43,7 @@ const isDarkMode = ref(false)
 const selectedTheme = ref(props.initialTheme || null)
 const showMascot = ref(false)
 const mascotText = ref('Hi! 👋')
+const isMobile = ref(false)
 let mascotTimer = null
 
 const mascotMessages = [
@@ -213,12 +214,15 @@ const hasMoved = ref(false)
 const isLoaded = ref(false)
 
 const wrapperStyle = computed(() => {
-  const style = {
-    left: `${position.value.x}px`,
-    top: `${position.value.y}px`,
+  const style = {}
+  
+  if (!isMobile.value) {
+    style.left = `${position.value.x}px`
+    style.top = `${position.value.y}px`
   }
+
   if (!isDragging.value && isLoaded.value) {
-    style.transition = 'left 0.5s cubic-bezier(0.19, 1, 0.22, 1), top 0.5s cubic-bezier(0.19, 1, 0.22, 1)'
+    style.transition = 'all 0.5s cubic-bezier(0.19, 1, 0.22, 1)'
   }
   return style
 })
@@ -359,7 +363,10 @@ const toggleTheme = (e) => {
 }
 
 const handleResize = () => {
-  snapToEdges()
+  isMobile.value = window.innerWidth <= 480
+  if (!isMobile.value) {
+    snapToEdges()
+  }
 }
 
 
@@ -370,7 +377,7 @@ onMounted(() => {
   
   // Snap to edges on load if it was saved in a middle position (e.g. while open)
   nextTick(() => {
-    snapToEdges()
+    handleResize()
     // Small delay before enabling transitions to prevent the "jump" being animated
     setTimeout(() => {
       isLoaded.value = true
@@ -623,7 +630,7 @@ onUpdated(async () => {
   position: fixed;
   z-index: 1000;
   font-family: 'Inter', sans-serif;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
   --dynamic-accent: v-bind(accentColor);
   --dynamic-bg: v-bind('complementaryInfo.bg');
@@ -1065,14 +1072,42 @@ input:focus {
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .floating-wrapper {
-    bottom: 1rem;
-    right: 1rem;
+    bottom: 20px !important;
+    right: 20px !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto;
+    height: auto;
   }
   
   .chat-window {
-    width: calc(100vw - 2rem);
-    height: 400px;
-    max-width: 350px;
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: calc(100vw - 40px);
+    height: 70vh;
+    max-height: 600px;
+    left: 20px;
+    margin: 0 auto;
+    border-radius: 24px;
+  }
+
+  .toggle-btn {
+    width: 60px;
+    height: 60px;
+  }
+
+  .mascot-container {
+    display: flex; /* Restore mascot */
+    right: 0 !important;
+    bottom: 100% !important;
+    top: auto !important;
+    left: auto !important;
+    align-items: flex-end !important;
+  }
+
+  .theme-picker {
+    max-width: 80px;
   }
 }
 </style>

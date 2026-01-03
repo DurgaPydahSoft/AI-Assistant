@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MongoAI | Supercharge Your MongoDB with AI</title>
+    <title>MongoPilot | Supercharge Your MongoDB with AI</title>
     <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -308,6 +308,42 @@
             font-size: 0.9rem;
             color: #94a3b8;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .copy-btn.copied {
+            background: #10b981;
+            color: #fff;
         }
 
         .code-keyword {
@@ -318,8 +354,15 @@
             color: var(--primary);
         }
 
-        .code-comment {
-            color: #475569;
+        .code-section {
+            position: relative;
+            padding-right: 4rem;
+        }
+
+        .code-block pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 0.5rem;
         }
 
         /* --- Responsive --- */
@@ -364,7 +407,7 @@
                     <path d="m8 4-6 6 6 6" />
                     <path d="m12 12 .01 0 v.01" />
                 </svg>
-                Mongo<span>AI</span>
+                Mongo<span>Pilot</span>
             </div>
             <nav>
                 <a href="#features">Features</a>
@@ -384,7 +427,7 @@
                 </div>
             </div>
             <div class="hero-visual">
-                <img src="./assets/hero-graphic.png" alt="MongoAI 3D Cluster Visualization">
+                <img src="./assets/hero-graphic.png" alt="MongoPilot 3D Cluster Visualization">
             </div>
         </section>
 
@@ -412,7 +455,8 @@
             <div class="integration-inner">
                 <div class="integration-text">
                     <h2>Instant Integration</h2>
-                    <p>Embed the MongoAI assistant into any application with just two lines of code. Fully customizable,
+                    <p>Embed the MongoPilot assistant into any application with just two lines of code. Fully
+                        customizable,
                         responsive, and performance-optimized.</p>
                     <ul style="margin-top:2rem; list-style: none; color: var(--text-dim);">
                         <li style="margin-bottom: 1rem;"><span style="color:var(--primary)">✓</span> Vercel & Netlify
@@ -423,22 +467,27 @@
                     </ul>
                 </div>
                 <div class="code-block">
-                    <p class="code-comment">&lt;!-- 1. Add the script --&gt;</p>
-                    <p>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span
-                            class="code-string">"module"</span> <span class="code-accent">src</span>=<span
-                            class="code-string">"https://mongoai.io/chatbot.js"</span>&gt;&lt;/<span
-                            class="code-keyword">script</span>&gt;</p>
-                    <br>
-                    <p class="code-comment">&lt;!-- 2. Mount the widget --&gt;</p>
-                    <p>&lt;<span class="code-keyword">ai-chatbot</span>&gt;&lt;/<span
-                            class="code-keyword">ai-chatbot</span>&gt;</p>
+                    <div class="code-section">
+                        <button class="copy-btn" onclick="copyCode('code-1', this)">Copy</button>
+                        <p class="code-comment">&lt;!-- 1. Add this to your index.html &lt;head&gt; --&gt;</p>
+                        <pre
+                            id="code-1"><code>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span class="code-string">"module"</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;</code></pre>
+                    </div>
+
+                    <div class="code-section"
+                        style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                        <button class="copy-btn" onclick="copyCode('code-2', this)">Copy</button>
+                        <p class="code-comment">&lt;!-- 2. Place the widget anywhere in your &lt;body&gt; --&gt;</p>
+                        <pre
+                            id="code-2"><code>&lt;<span class="code-keyword">ai-chatbot</span>&gt;&lt;/<span class="code-keyword">ai-chatbot</span>&gt;</code></pre>
+                    </div>
                 </div>
             </div>
         </section>
 
         <footer
             style="padding: 4rem 0; text-align: center; color: var(--text-dim); border-top: 1px solid var(--glass-border);">
-            <p>© 2026 MongoAI Assistant. Built for the modern data era.</p>
+            <p>© 2026 MongoPilot Assistant. Built for the modern data era.</p>
         </footer>
     </div>
 
@@ -448,6 +497,22 @@
     <ai-chatbot></ai-chatbot>
 
     <script>
+        // Copy to clipboard function
+        function copyCode(elementId, btn) {
+            const text = document.getElementById(elementId).innerText;
+            const originalIcon = btn.innerHTML;
+            const checkIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerHTML = checkIcon;
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = originalIcon;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
         // Smooth scroll for anchors
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {

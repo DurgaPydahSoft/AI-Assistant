@@ -228,14 +228,15 @@ const wrapperStyle = computed(() => {
 })
 
 const startDrag = (e) => {
+  hasMoved.value = false
   // Only drag from the toggle button or header
   if (!e.target.closest('.toggle-btn') && !e.target.closest('.header')) return
 
-  // Prevent dragging when interacting with header controls (theme picker, buttons)
-  if (e.target.closest('.header-actions') || e.target.closest('.theme-picker')) return
+  // Prevent dragging when interacting with header controls (theme picker, buttons, close btn)
+  // BUT allow dragging if it's the main toggle button (when chat is closed)
+  if (e.target.closest('.header-actions') || e.target.closest('.theme-picker') || (isOpen.value && e.target.closest('button'))) return
   
   isDragging.value = true
-  hasMoved.value = false
   const event = e.type === 'touchstart' ? e.touches[0] : e
   
   dragOffset.value = {
@@ -556,7 +557,7 @@ onUpdated(async () => {
             <Sun v-if="isDarkMode" :size="16" />
             <Moon v-else :size="16" />
           </button>
-          <button @click="handleToggle" class="close-btn">
+          <button @click.stop="handleToggle" class="close-btn">
             <X :size="16" />
           </button>
         </div>

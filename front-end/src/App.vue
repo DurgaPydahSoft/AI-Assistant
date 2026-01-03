@@ -2,6 +2,7 @@
 import FloatingChat from './components/FloatingChat.vue'
 import { useChat } from './composables/useChat'
 
+const props = defineProps(['initialTheme', 'themes'])
 const { messages, isStreaming, sendMessage } = useChat()
 </script>
 
@@ -9,6 +10,8 @@ const { messages, isStreaming, sendMessage } = useChat()
   <FloatingChat 
     :messages="messages" 
     :isStreaming="isStreaming" 
+    :initialTheme="initialTheme"
+    :themes="themes"
     @send="sendMessage" 
   />
 </template>

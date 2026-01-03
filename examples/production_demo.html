@@ -4,53 +4,394 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot Service Demo</title>
-    <!-- Use correct production paths relative to dist/ -->
-    <!-- Styles are now bundled in chatbot.js -->
+    <title>MongoAI | Supercharge Your MongoDB with AI</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.4);
+            --accent: #06b6d4;
+            --bg-deep: #0f172a;
+            --bg-glass: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: sans-serif;
-            padding: 2rem;
-            background: #e2e8f0;
-            color: #1e293b;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
         }
 
-        h1 {
-            color: #334155;
+        /* --- Background Decoration --- */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.15), transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1), transparent 40%);
+            z-index: -1;
         }
 
-        button {
-            padding: 12px 24px;
-            font-size: 1rem;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background: #cbd5e1;
-            color: #1e293b;
+        .gradient-line {
+            position: absolute;
+            width: 150%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+            opacity: 0.3;
+            transform: rotate(-15deg);
+            top: 20%;
+            left: -25%;
+            filter: blur(10px);
+            animation: drift 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes drift {
+            from {
+                transform: rotate(-15deg) translateY(0);
+            }
+
+            to {
+                transform: rotate(-12deg) translateY(50px);
+            }
+        }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header {
+            padding: 2rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            padding: 6rem 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to bottom right, #fff, #94a3b8);
+            --webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 3rem auto;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            border-radius: 99px;
+            font-size: 1.1rem;
             font-weight: 600;
-            transition: all 0.2s;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
         }
 
-        button:hover {
-            filter: brightness(0.95);
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 10px 30px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px var(--primary-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #fff;
+            border: 1px solid var(--glass-border);
+            margin-left: 1rem;
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- Features --- */
+        .features {
+            padding: 8rem 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            padding: 2.5rem;
+            border-radius: 24px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-10px);
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card p {
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        /* --- Integration Section --- */
+        .integration {
+            padding: 8rem 0;
+            background: rgba(16, 185, 129, 0.02);
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .integration-inner {
+            display: flex;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .integration-text {
+            flex: 1;
+        }
+
+        .integration-text h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .code-block {
+            flex: 1;
+            background: #020617;
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-keyword {
+            color: var(--accent);
+        }
+
+        .code-string {
+            color: var(--primary);
+        }
+
+        .code-comment {
+            color: #475569;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 1024px) {
+            .features {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .hero h1 {
+                font-size: 3.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .integration-inner {
+                flex-direction: column;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
         }
     </style>
 </head>
 
 <body>
-    <h1>HR Portal (Host Application)</h1>
-    <p>This is a simulated external application hosting the chatbot widget.</p>
+    <div class="bg-glow"></div>
+    <div class="gradient-line"></div>
 
-    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-        <button id="approve-btn" style="background: #10b981; color: white;">Approve Request</button>
-        <button id="reject-btn" style="background: #ef4444; color: white;">Reject Request</button>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)">
+                    <path d="m16 20 6-6-6-6" />
+                    <path d="m8 4-6 6 6 6" />
+                    <path d="m12 12 .01 0 v.01" />
+                </svg>
+                Mongo<span>AI</span>
+            </div>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#integration">Integration</a>
+                <a href="#" class="btn btn-outline" style="padding: 0.5rem 1.5rem; font-size: 0.9rem;">Sign In</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Supercharge Your<br>MongoDB with AI</h1>
+            <p>The premium MongoDB assistant that handles CRUD operations, complex aggregations, and schema analysis
+                through simple natural language.</p>
+            <div class="hero-btns">
+                <a href="#integration" class="btn btn-primary">Get Started</a>
+                <a href="#features" class="btn btn-outline">Explore Features</a>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Autopilot CRUD</h3>
+                <p>Create, read, update, and delete records safely using natural language. No more manual query
+                    construction.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>Schema Awareness</h3>
+                <p>Real-time understanding of your collection structures. AI asks for missing fields instead of
+                    guessing.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Safe Execution</h3>
+                <p>Mandatory confirmation blocks for write operations. You maintain 100% control over your data.</p>
+            </div>
+        </section>
+
+        <section id="integration" class="integration">
+            <div class="integration-inner">
+                <div class="integration-text">
+                    <h2>Instant Integration</h2>
+                    <p>Embed the MongoAI assistant into any application with just two lines of code. Fully customizable,
+                        responsive, and performance-optimized.</p>
+                    <ul style="margin-top:2rem; list-style: none; color: var(--text-dim);">
+                        <li style="margin-bottom: 1rem;"><span style="color:var(--primary)">✓</span> Vercel & Netlify
+                            Ready</li>
+                        <li style="margin-bottom: 1rem;"><span style="color:var(--primary)">✓</span> Zero-Config
+                            Deployment</li>
+                        <li><span style="color:var(--primary)">✓</span> Multi-Tenant Architecture</li>
+                    </ul>
+                </div>
+                <div class="code-block">
+                    <p class="code-comment">&lt;!-- 1. Add the script --&gt;</p>
+                    <p>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span
+                            class="code-string">"module"</span> <span class="code-accent">src</span>=<span
+                            class="code-string">"https://mongoai.io/chatbot.js"</span>&gt;&lt;/<span
+                            class="code-keyword">script</span>&gt;</p>
+                    <br>
+                    <p class="code-comment">&lt;!-- 2. Mount the widget --&gt;</p>
+                    <p>&lt;<span class="code-keyword">ai-chatbot</span>&gt;&lt;/<span
+                            class="code-keyword">ai-chatbot</span>&gt;</p>
+                </div>
+            </div>
+        </section>
+
+        <footer
+            style="padding: 4rem 0; text-align: center; color: var(--text-dim); border-top: 1px solid var(--glass-border);">
+            <p>© 2026 MongoAI Assistant. Built for the modern data era.</p>
+        </footer>
     </div>
 
-    <!-- Production Script -->
+    <!-- The Actual Chatbot Widget -->
+    <!-- Note: Relative path for production demo inside dist/ -->
     <script type="module" src="./chatbot.js"></script>
-
-    <!-- Widget Element -->
     <ai-chatbot></ai-chatbot>
+
+    <script>
+        // Smooth scroll for anchors
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

@@ -45,8 +45,19 @@
             width: 100%;
             height: 100%;
             background:
-                radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.15), transparent 40%),
-                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1), transparent 40%);
+                radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.2), transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.15), transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1), #020617);
+            z-index: -1;
+        }
+
+        .radiant-node {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.05), transparent 70%);
+            border-radius: 50%;
+            filter: blur(40px);
             z-index: -1;
         }
 
@@ -114,26 +125,74 @@
 
         /* --- Hero Section --- */
         .hero {
-            padding: 6rem 0;
-            text-align: center;
+            padding: 4rem 0 8rem 0;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            align-items: center;
+            gap: 4rem;
             position: relative;
         }
 
+        .hero-content {
+            text-align: left;
+        }
+
         .hero h1 {
-            font-size: 4.5rem;
+            font-size: 4.8rem;
             font-weight: 700;
-            line-height: 1.1;
+            line-height: 1.05;
             margin-bottom: 1.5rem;
-            background: linear-gradient(to bottom right, #fff, #94a3b8);
-            --webkit-background-clip: text;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+            color: transparent;
         }
 
         .hero p {
             font-size: 1.25rem;
             color: var(--text-dim);
-            max-width: 600px;
-            margin: 0 auto 3rem auto;
+            max-width: 550px;
+            margin-bottom: 3rem;
+        }
+
+        .hero-visual {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero-visual img {
+            width: 100%;
+            max-width: 550px;
+            height: auto;
+            border-radius: 32px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            animation: float 6s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px var(--primary-glow));
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .hero-visual::before {
+            content: '';
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(circle, var(--primary-glow), transparent 70%);
+            z-index: -1;
+            opacity: 0.5;
         }
 
         .btn {
@@ -292,6 +351,8 @@
 
 <body>
     <div class="bg-glow"></div>
+    <div class="radiant-node" style="top: 10%; left: 10%;"></div>
+    <div class="radiant-node" style="bottom: 10%; right: 10%;"></div>
     <div class="gradient-line"></div>
 
     <div class="container">
@@ -313,12 +374,18 @@
         </header>
 
         <section class="hero">
-            <h1>Supercharge Your<br>MongoDB with AI</h1>
-            <p>The premium MongoDB assistant that handles CRUD operations, complex aggregations, and schema analysis
-                through simple natural language.</p>
-            <div class="hero-btns">
-                <a href="#integration" class="btn btn-primary">Get Started</a>
-                <a href="#features" class="btn btn-outline">Explore Features</a>
+            <div class="hero-content">
+                <h1>Supercharge<br>MongoDB with AI</h1>
+                <p>The premium MongoDB assistant that handles CRUD operations, complex aggregations, and schema analysis
+                    through simple natural language.</p>
+                <div class="hero-btns">
+                    <a href="#integration" class="btn btn-primary">Get Started</a>
+                    <a href="#features" class="btn btn-outline">Explore Features</a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <img src="file:///C:/Users/bannu/.gemini/antigravity/brain/e60043be-c67b-4a37-882d-921058f2603b/mongodb_3d_graphic_1767426136228.png"
+                    alt="MongoAI 3D Cluster Visualization">
             </div>
         </section>
 

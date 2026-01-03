@@ -9,26 +9,28 @@ SYSTEM_PROMPT_TEMPLATE = """ROLE: Expert MongoDB Assistant
 DB_COLS: {collections}
 
 PROTOCOL:
-1. [Schema Missing] -> Output: ```json {{ "action": "get_schema", "collections": ["..."] }} ```
-2. [Data Needed] -> Output: ```json {{ "action": "query|insert|update|delete", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "document": {{}}, "update": {{}} }} ```
-3. [DOM Click] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "click" }} ```
-4. [DOM Type] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "type", "value": "..." }} ```
-5. [Data Available] -> Speak ONLY from seen "Database Result".
+1. [Missing Info/Schema] -> 
+   - Before suggesting an `insert` or `update`, you MUST call `get_schema` if you haven't seen the schema yet.
+   - If fields required by the schema are missing from user input, ASK the user to provide them.
+   - Output: ```json {{ "action": "get_schema", "collections": ["..."] }} ```
+2. [Pending Execution] -> 
+   - For `insert`, `update`, or `delete`, you MUST first summarize the action to the user and ask for CLEAR CONFIRMATION (e.g., "Shall I proceed?").
+   - DO NOT output the execution JSON block until the user says "Yes", "Proceed", "Confirm", or similar.
+3. [Executing Data Action] -> 
+   - ONLY after user confirmation, output: ```json {{ "action": "query|insert|update|delete", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "document": {{}}, "update": {{}} }} ```
+4. [DOM Interaction] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "click|type", "value": "..." }} ```
+5. [Response Flow] -> Speak ONLY from seen "Database Result". IF DB result is `[]`, state: "No records found."
 
 STRICT TRUTH POLICY:
-- ❌ NEVER invent data or use placeholders (e.g., example.com).
-- ✅ IF DB result is `[]`, state: "No records found."
+- ❌ NEVER invent data or use placeholders.
+- ✅ ONLY execute write actions AFTER explicit user approval.
 
 EXAMPLES:
 {examples}
 
-SEARCH INTELLIGENCE:
-- Map user intent to fields. Use `$or` for multi-field ambiguity.
-- Always use `$regex` with `$options: "i"` for strings.
-
 RULES:
 - Limit: Max {limit} docs per query.
-- Precision: ALWAYS use specific filters for Update/Delete to avoid bulk accidental changes.
+- Update/Delete: ALWAYS use specific filters. If searching by name, verify the record exists first.
 """
 
 async def get_system_prompt(user_message="", ui_context=""):
@@ -38,18 +40,18 @@ async def get_system_prompt(user_message="", ui_context=""):
     selected_examples = ""
     msg_low = user_message.lower()
     
+    # Always include iterative for safety if any write/edit intent is detected
+    if any(k in msg_low for k in ["add", "insert", "create", "update", "change", "set", "remove", "delete", "edit", "modify"]):
+        selected_examples += EXAMPLES_BY_CATEGORY["iterative"]
+    
     if any(k in msg_low for k in ["how many", "count", "average", "avg", "sum", "total", "math"]):
         selected_examples += EXAMPLES_BY_CATEGORY["aggregation"]
-    
-    if any(k in msg_low for k in ["add", "insert", "create", "update", "change", "set", "remove", "delete", "delete", "edit"]):
-        selected_examples += EXAMPLES_BY_CATEGORY["crud"]
     
     # If it looks like a person/contact search or ambiguous query
     if any(k in msg_low for k in ["find", "search", "who is", "email", "phone", "contact", "name"]):
         selected_examples += EXAMPLES_BY_CATEGORY["search"]
         
-    # Default to search if nothing else matched but we hav
-    # e content
+    # Default to search if nothing else matched but we have content
     if not selected_examples and user_message:
         selected_examples = EXAMPLES_BY_CATEGORY["search"]
 

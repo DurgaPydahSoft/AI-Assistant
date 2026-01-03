@@ -94,6 +94,7 @@ async def chat_endpoint(request: ChatRequest):
                         if action == "get_schema":
                             schema_info = await get_specific_collection_schema(db, action_data.get("collections", []))
                             messages.append({"role": "system", "content": f"SCHEMA DATA:\n{schema_info}"})
+                            interaction_results.append(f"Schema data for {action_data.get('collections', [])} added to system context.")
                             print(f"[LOG] Schema Fetch: {action_data.get('collections')}")
                             
                         elif action in ["query", "insert", "update", "delete"]:

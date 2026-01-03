@@ -80,5 +80,46 @@ Output: ```json
   "collection": "users",
   "filter": { "email": "tester@test.com" }
 }
-```"""
+```""",
+
+    "iterative": """
+EXAMPLE: Iterative Creation (Schema Aware)
+User: "I want to add a new student"
+Assistant: "Sure! Let me check what details are needed for a student record."
+Output: ```json
+{ "action": "get_schema", "collections": ["students"] }
+```
+System Result: students(name:String, rollNo:Integer, email:String, dept:String)
+Assistant: "I see. To add a student, I'll need their Name, Roll Number, Email, and Department. Could you provide those?"
+
+EXAMPLE: Mandatory Confirmation
+User: "Add student Alice, Roll 101, Email alice@test.com, Dept CSE"
+Assistant: "I've prepared the details for student Alice. 
+- Name: Alice
+- Roll No: 101
+- Email: alice@test.com
+- Dept: CSE
+Should I proceed with adding this record to the database?"
+User: "Yes, go ahead."
+Output: ```json
+{
+  "action": "insert",
+  "collection": "students",
+  "document": { "name": "Alice", "rollNo": 101, "email": "alice@test.com", "dept": "CSE" }
+}
+```
+
+EXAMPLE: Targeted Update with Confirmation
+User: "Change Bob's department to ECE"
+Assistant: "Found it. I will update Bob's department from 'CSE' to 'ECE'. Please confirm if I should execute this change."
+User: "Confirmed"
+Output: ```json
+{
+  "action": "update",
+  "collection": "students",
+  "filter": { "name": "Bob" },
+  "update": { "$set": { "dept": "ECE" } }
+}
+```
+"""
 }

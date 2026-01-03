@@ -375,6 +375,40 @@
             margin-top: 0.5rem;
         }
 
+        /* --- Tabs --- */
+        .framework-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+        }
+
+        .framework-content {
+            display: none;
+        }
+
+        .framework-content.active {
+            display: block;
+        }
+
         /* --- Responsive --- */
         /* --- Responsive updates for MongoPilot --- */
         @media (max-width: 1440px) {
@@ -575,19 +609,158 @@
                     </ul>
                 </div>
                 <div class="code-block">
-                    <div class="code-section">
-                        <button class="copy-btn" onclick="copyCode('code-1', this)">Copy</button>
-                        <p class="code-comment">&lt;!-- 1. Add this to your index.html &lt;head&gt; --&gt;</p>
-                        <pre
-                            id="code-1"><code>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span class="code-string">"module"</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;</code></pre>
+                    <div class="framework-tabs">
+                        <button class="tab-btn active" onclick="switchTab('html')">HTML</button>
+                        <button class="tab-btn" onclick="switchTab('nextjs')">Next.js</button>
+                        <button class="tab-btn" onclick="switchTab('react')">React</button>
+                        <button class="tab-btn" onclick="switchTab('astro')">Astro</button>
+                        <button class="tab-btn" onclick="switchTab('svelte')">Svelte</button>
                     </div>
 
-                    <div class="code-section"
-                        style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
-                        <button class="copy-btn" onclick="copyCode('code-2', this)">Copy</button>
-                        <p class="code-comment">&lt;!-- 2. Place the widget anywhere in your &lt;body&gt; --&gt;</p>
-                        <pre
-                            id="code-2"><code>&lt;<span class="code-keyword">ai-chatbot</span>&gt;&lt;/<span class="code-keyword">ai-chatbot</span>&gt;</code></pre>
+                    <!-- HTML Snippets -->
+                    <div id="tab-html" class="framework-content active">
+                        <div class="code-section">
+                            <button class="copy-btn" onclick="copyCode('code-html-1', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">&lt;!-- Add to &lt;head&gt; --&gt;</p>
+                            <pre
+                                id="code-html-1"><code>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span class="code-string">"module"</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;</code></pre>
+                        </div>
+                        <div class="code-section"
+                            style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                            <button class="copy-btn" onclick="copyCode('code-html-2', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">&lt;!-- Add to &lt;body&gt; --&gt;</p>
+                            <pre
+                                id="code-html-2"><code>&lt;<span class="code-keyword">ai-chatbot</span>&gt;&lt;/<span class="code-keyword">ai-chatbot</span>&gt;</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Next.js Snippets -->
+                    <div id="tab-nextjs" class="framework-content">
+                        <div class="code-section">
+                            <button class="copy-btn" onclick="copyCode('code-next-1', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">// Add to app/layout.tsx</p>
+                            <pre
+                                id="code-next-1"><code>&lt;<span class="code-keyword">Script</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span> <span class="code-accent">strategy</span>=<span class="code-string">"lazyOnload"</span> /&gt;</code></pre>
+                        </div>
+                        <div class="code-section"
+                            style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                            <button class="copy-btn" onclick="copyCode('code-next-2', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">// Render the component</p>
+                            <pre
+                                id="code-next-2"><code>&lt;<span class="code-keyword">ai-chatbot</span> /&gt;</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- React Snippets -->
+                    <div id="tab-react" class="framework-content">
+                        <div class="code-section">
+                            <button class="copy-btn" onclick="copyCode('code-react-1', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">// index.html</p>
+                            <pre
+                                id="code-react-1"><code>&lt;<span class="code-keyword">script</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;</code></pre>
+                        </div>
+                        <div class="code-section"
+                            style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                            <button class="copy-btn" onclick="copyCode('code-react-2', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">// App.tsx</p>
+                            <pre
+                                id="code-react-2"><code>&lt;<span class="code-keyword">ai-chatbot</span> /&gt;</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Astro Snippets -->
+                    <div id="tab-astro" class="framework-content">
+                        <div class="code-section">
+                            <button class="copy-btn" onclick="copyCode('code-astro-1', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">--- Layout.astro ---</p>
+                            <pre
+                                id="code-astro-1"><code>&lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span class="code-string">"module"</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;</code></pre>
+                        </div>
+                        <div class="code-section"
+                            style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                            <button class="copy-btn" onclick="copyCode('code-astro-2', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">&lt;!-- Use anywhere in Astro --&gt;</p>
+                            <pre
+                                id="code-astro-2"><code>&lt;<span class="code-keyword">ai-chatbot</span> /&gt;</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Svelte Snippets -->
+                    <div id="tab-svelte" class="framework-content">
+                        <div class="code-section">
+                            <button class="copy-btn" onclick="copyCode('code-svelte-1', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">// +layout.svelte</p>
+                            <pre id="code-svelte-1"><code>&lt;<span class="code-keyword">svelte:head</span>&gt;
+  &lt;<span class="code-keyword">script</span> <span class="code-accent">type</span>=<span class="code-string">"module"</span> <span class="code-accent">src</span>=<span class="code-string">"https://ai-assistant-kappa-roan.vercel.app/chatbot.js"</span>&gt;&lt;/<span class="code-keyword">script</span>&gt;
+&lt;/<span class="code-keyword">svelte:head</span>&gt;</code></pre>
+                        </div>
+                        <div class="code-section"
+                            style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                            <button class="copy-btn" onclick="copyCode('code-svelte-2', this)" title="Copy Code">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                            </button>
+                            <p class="code-comment">&lt;!-- Use anywhere --&gt;</p>
+                            <pre
+                                id="code-svelte-2"><code>&lt;<span class="code-keyword">ai-chatbot</span> /&gt;</code></pre>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -618,6 +791,18 @@
                     btn.innerHTML = originalIcon;
                     btn.classList.remove('copied');
                 }, 2000);
+            });
+        }
+
+        // Framework tab switcher
+        function switchTab(framework) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('onclick').includes(framework));
+            });
+            // Update content blocks
+            document.querySelectorAll('.framework-content').forEach(block => {
+                block.classList.toggle('active', block.id === `tab-${framework}`);
             });
         }
 

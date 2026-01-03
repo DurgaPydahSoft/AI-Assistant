@@ -1073,8 +1073,8 @@ input:focus {
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .floating-wrapper {
-    bottom: 20px !important;
-    right: 20px !important;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
     left: auto !important;
     top: auto !important;
     width: auto;
@@ -1083,23 +1083,23 @@ input:focus {
   
   .chat-window {
     position: fixed;
-    bottom: 90px;
-    right: 20px;
-    width: calc(100vw - 40px);
-    height: 70vh;
-    max-height: 600px;
-    left: 20px;
+    bottom: calc(85px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: calc(100vw - 32px);
+    height: 65vh;
+    max-height: 550px;
+    left: 16px;
     margin: 0 auto;
-    border-radius: 24px;
+    border-radius: 20px;
   }
 
   .toggle-btn {
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
   }
 
   .mascot-container {
-    display: flex; /* Restore mascot */
+    display: flex;
     right: 0 !important;
     bottom: 100% !important;
     top: auto !important;

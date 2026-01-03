@@ -61,6 +61,26 @@ const isAtRightSide = computed(() => {
   return position.value.x > window.innerWidth / 2
 })
 
+const DEFAULT_WIDTH = 350
+const DEFAULT_HEIGHT = 500
+const MIN_WIDTH = 300
+const MIN_HEIGHT = 400
+
+const getInitialDims = () => {
+  const saved = localStorage.getItem('chatbot_dimensions')
+  if (saved) {
+    try { return JSON.parse(saved) } catch(e) {}
+  }
+  return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }
+}
+
+const chatDimensions = ref(getInitialDims())
+const isResizing = ref(false)
+const resizeDir = ref('')
+const startResizePos = ref({ x: 0, y: 0 })
+const startResizeDims = ref({ width: 0, height: 0 })
+const startResizeWinPos = ref({ x: 0, y: 0 })
+
 const isAtTopSide = computed(() => {
   return position.value.y < 100
 })
@@ -228,6 +248,7 @@ const wrapperStyle = computed(() => {
 })
 
 const startDrag = (e) => {
+  if (isResizing.value) return
   hasMoved.value = false
   // Only drag from the toggle button or header
   if (!e.target.closest('.toggle-btn') && !e.target.closest('.header')) return
@@ -261,8 +282,8 @@ const onDrag = (e) => {
   // Boundary checks (stay within screen)
   const windowW = window.innerWidth
   const windowH = window.innerHeight
-  const elementW = isOpen.value ? 350 : ICON_SIZE
-  const elementH = isOpen.value ? 500 : ICON_SIZE
+  const elementW = isOpen.value ? chatDimensions.value.width : ICON_SIZE
+  const elementH = isOpen.value ? chatDimensions.value.height : ICON_SIZE
 
   newX = Math.max(0, Math.min(newX, windowW - elementW))
   newY = Math.max(0, Math.min(newY, windowH - elementH))
@@ -306,34 +327,17 @@ const handleToggle = () => {
   const wasOpen = isOpen.value
   isOpen.value = !isOpen.value
   
-  const CHAT_W = 350
-  const CHAT_H = 500
+  const CHAT_W = chatDimensions.value.width
+  const CHAT_H = chatDimensions.value.height
   
   if (wasOpen) {
-    // Closing: Anchor to bottom-right
-    // Current pos is top-left of the window
-    // We want the button's bottom-right to match the window's bottom-right
-    // Button is at: newX, newY. Button size: ICON_SIZE
-    // Window Bottom-Right: pos.x + CHAT_W, pos.y + CHAT_H
-    // Button Bottom-Right: newX + ICON_SIZE, newY + ICON_SIZE
-    // Equating them: newY = pos.y + CHAT_H - ICON_SIZE
-    
     position.value.y = position.value.y + CHAT_H - ICON_SIZE
-    position.value.x = position.value.x // Keep X aligned to side usually, or adjust: position.value.x + CHAT_W - ICON_SIZE
-    
-    // If it was on the right side, keep it on right. If left, keep left.
-    // Simpler visual feel: shift Y down.
-    
-    // We also need to fix X if we want true bottom-right anchoring:
     position.value.x = position.value.x + CHAT_W - ICON_SIZE
 
     nextTick(() => {
       snapToEdges()
     })
   } else {
-    // Opening: Expand visually upwards/leftwards
-    // New Top-Left needs to be such that Bottom-Right stays put
-    // newY = pos.y - (CHAT_H - ICON_SIZE)
     position.value.y = position.value.y - (CHAT_H - ICON_SIZE)
     position.value.x = position.value.x - (CHAT_W - ICON_SIZE)
     
@@ -349,6 +353,88 @@ const handleToggle = () => {
       savePosition()
     })
   }
+}
+
+// Resizing Logic
+const startResize = (e, direction) => {
+  e.stopPropagation()
+  e.preventDefault()
+  
+  isResizing.value = true
+  resizeDir.value = direction
+  
+  const event = e.type === 'touchstart' ? e.touches[0] : e
+  startResizePos.value = { x: event.clientX, y: event.clientY }
+  startResizeDims.value = { ...chatDimensions.value }
+  startResizeWinPos.value = { ...position.value }
+  
+  window.addEventListener('mousemove', onResize)
+  window.addEventListener('mouseup', stopResize)
+  window.addEventListener('touchmove', onResize, { passive: false })
+  window.addEventListener('touchend', stopResize)
+}
+
+const onResize = (e) => {
+  if (!isResizing.value) return
+  const event = e.type === 'touchmove' ? e.touches[0] : e
+  
+  const dx = event.clientX - startResizePos.value.x
+  const dy = event.clientY - startResizePos.value.y
+  
+  let newWidth = startResizeDims.value.width
+  let newHeight = startResizeDims.value.height
+  let newX = startResizeWinPos.value.x
+  let newY = startResizeWinPos.value.y
+
+  // Handle different corners
+  if (resizeDir.value.includes('e')) {
+    newWidth = Math.max(MIN_WIDTH, startResizeDims.value.width + dx)
+  }
+  if (resizeDir.value.includes('w')) {
+    const maxWidth = startResizeWinPos.value.x + startResizeDims.value.width - MARGIN
+    newWidth = Math.max(MIN_WIDTH, Math.min(maxWidth, startResizeDims.value.width - dx))
+    newX = startResizeWinPos.value.x + (startResizeDims.value.width - newWidth)
+  }
+  if (resizeDir.value.includes('s')) {
+    newHeight = Math.max(MIN_HEIGHT, startResizeDims.value.height + dy)
+  }
+  if (resizeDir.value.includes('n')) {
+    const maxHeight = startResizeWinPos.value.y + startResizeDims.value.height - MARGIN
+    newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, startResizeDims.value.height - dy))
+    newY = startResizeWinPos.value.y + (startResizeDims.value.height - newHeight)
+  }
+
+  // Screen boundaries
+  const windowW = window.innerWidth
+  const windowH = window.innerHeight
+  
+  if (newX + newWidth > windowW - MARGIN) newWidth = windowW - MARGIN - newX
+  if (newY + newHeight > windowH - MARGIN) newHeight = windowH - MARGIN - newY
+  if (newX < MARGIN) {
+    const diff = MARGIN - newX
+    newX = MARGIN
+    newWidth -= diff
+  }
+  if (newY < MARGIN) {
+    const diff = MARGIN - newY
+    newY = MARGIN
+    newHeight -= diff
+  }
+
+  chatDimensions.value = { width: newWidth, height: newHeight }
+  position.value = { x: newX, y: newY }
+  
+  if (e.type === 'touchmove') e.preventDefault()
+}
+
+const stopResize = () => {
+  isResizing.value = false
+  window.removeEventListener('mousemove', onResize)
+  window.removeEventListener('mouseup', stopResize)
+  window.removeEventListener('touchmove', onResize)
+  window.removeEventListener('touchend', stopResize)
+  
+  localStorage.setItem('chatbot_dimensions', JSON.stringify(chatDimensions.value))
 }
 
 
@@ -513,10 +599,20 @@ onUpdated(async () => {
     </button>
 
     <!-- Chat Window -->
-    <div v-else class="chat-window">
+    <div v-else class="chat-window" 
+         :class="{ resizing: isResizing }"
+         :style="{ width: chatDimensions.width + 'px', height: chatDimensions.height + 'px' }">
+      <!-- Resize Handles -->
+      <div class="resize-handle resizer-nw" @mousedown="startResize($event, 'nw')" @touchstart="startResize($event, 'nw')"></div>
+      <div class="resize-handle resizer-n" @mousedown="startResize($event, 'n')" @touchstart="startResize($event, 'n')"></div>
+      <div class="resize-handle resizer-ne" @mousedown="startResize($event, 'ne')" @touchstart="startResize($event, 'ne')"></div>
+      <div class="resize-handle resizer-w" @mousedown="startResize($event, 'w')" @touchstart="startResize($event, 'w')"></div>
+      <div class="resize-handle resizer-e" @mousedown="startResize($event, 'e')" @touchstart="startResize($event, 'e')"></div>
+      <div class="resize-handle resizer-sw" @mousedown="startResize($event, 'sw')" @touchstart="startResize($event, 'sw')"></div>
+      <div class="resize-handle resizer-s" @mousedown="startResize($event, 's')" @touchstart="startResize($event, 's')"></div>
+      <div class="resize-handle resizer-se" @mousedown="startResize($event, 'se')" @touchstart="startResize($event, 'se')"></div>
 
-
-      <div class="header">
+      <div class="header" @mousedown="startDrag">
         <div class="agent-info">
           <div class="avatar-sm" style="background: transparent;">
             <!-- 3D Robot Head Icon -->
@@ -758,7 +854,50 @@ onUpdated(async () => {
 @keyframes bubble-pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
 /* Chat Window */
-.chat-window { width: 350px; height: 500px; background: var(--bg-primary); backdrop-filter: blur(16px); border: 1px solid var(--border-color); border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 20px 50px var(--shadow-strong); overflow: hidden; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.chat-window { 
+  background: var(--bg-primary); 
+  backdrop-filter: blur(16px); 
+  border: 1px solid var(--border-color); 
+  border-radius: 20px; 
+  display: flex; 
+  flex-direction: column; 
+  box-shadow: 0 20px 50px var(--shadow-strong); 
+  overflow: hidden; 
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  /* Allow handles to be reached at the very edge */
+  padding: 2px;
+}
+
+.chat-window.resizing {
+  transition: none !important;
+  user-select: none;
+}
+
+/* Resize Handles - Improved Hitbox and Visuals */
+.resize-handle {
+  position: absolute;
+  z-index: 100;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+/* Corner Handles (L-shaped hitboxes) */
+.resizer-nw { top: 0; left: 0; width: 20px; height: 20px; cursor: nw-resize; }
+.resizer-ne { top: 0; right: 0; width: 20px; height: 20px; cursor: ne-resize; }
+.resizer-sw { bottom: 0; left: 0; width: 20px; height: 20px; cursor: sw-resize; }
+.resizer-se { bottom: 0; right: 0; width: 20px; height: 20px; cursor: se-resize; }
+
+/* Edge Handles */
+.resizer-n { top: 0; left: 20px; right: 20px; height: 6px; cursor: n-resize; }
+.resizer-s { bottom: 0; left: 20px; right: 20px; height: 6px; cursor: s-resize; }
+.resizer-e { top: 20px; bottom: 20px; right: 0; width: 6px; cursor: e-resize; }
+.resizer-w { top: 20px; bottom: 20px; left: 0; width: 6px; cursor: w-resize; }
+
+/* Visual feedback on hover */
+.resize-handle:hover {
+  background: rgba(var(--dynamic-accent), 0.1);
+}
 
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }

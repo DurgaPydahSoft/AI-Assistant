@@ -22,10 +22,10 @@ const availableThemes = computed(() => {
 
   if (themesArr.length === 0) {
     themesArr = [
-      { id: 'rose', color: '#f43f5e' },
-      { id: 'black', color: '#000000' },
       { id: 'emerald', color: '#10b981' },
-      { id: 'blue', color: '#3b82f6' }
+      { id: 'cyan', color: '#06b6d4' },
+      { id: 'indigo', color: '#6366f1' },
+      { id: 'slate', color: '#334155' }
     ]
   }
 
@@ -55,7 +55,7 @@ const mascotMessages = [
 
 // The fallback theme to use if no initial theme is provided and user hasn't selected one yet.
 // This is the "default colour" defined in the code.
-const SYSTEM_DEFAULT_THEME = { id: 'rose', color: '#f43f5e' }
+const SYSTEM_DEFAULT_THEME = { id: 'emerald', color: '#10b981' }
 
 const isAtRightSide = computed(() => {
   return position.value.x > window.innerWidth / 2

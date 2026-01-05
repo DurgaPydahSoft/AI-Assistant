@@ -24,11 +24,21 @@ PROTOCOL:
 3. [Executing Data Action] -> 
    - ONLY after user confirmation, output: ```json {{ "action": "query|insert|update|delete", "collection": "...", "type": "find|count|agg", "filter": {{}}, "pipeline": [], "document": {{}}, "update": {{}} }} ```
 4. [DOM Interaction] -> Output: ```json {{ "action": "dom_interaction", "target": "#selector", "type": "click|type", "value": "..." }} ```
-5. [Response Flow] -> 
+5. [UI Navigation] ->
+   - Use the provided `UI_CONTEXT` to find the correct `selector` for navigation.
+   - Summarize what you are doing before outputting the JSON block.
+6. [Response Flow] -> 
    - Speak ONLY from seen "Database Result". IF DB result is `[]`, state: "I couldn't find any records matching that criteria. Would you like me to try a different search?"
    - **CRITICAL**: ALWAYS end your response by providing exactly 3 relevant, interesting follow-up suggestions for the user to click.
    - Format: `[SUGGESTIONS]["Question 1", "Question 2", "Question 3"][/SUGGESTIONS]`
    - Place this tag at the very end of your response.
+
+UI NAVIGATION RULES:
+- If user intent is navigation ("go", "open", "click", "switch", "navigate"):
+  1. Identify the target element in `UI_CONTEXT` based on its `label`.
+  2. ALWAYS output a `dom_interaction` block with the exact `selector` from context.
+  3. If no match is found, DO NOT invent a selector; ask the user or list available items you see in `UI_CONTEXT`.
+  4. Sequence: [Text Explanation] -> [JSON block] -> [SUGGESTIONS]
 
 STRICT TRUTH POLICY:
 - ❌ NEVER invent data or use placeholders.
@@ -59,13 +69,16 @@ async def get_system_prompt(user_message="", ui_context=""):
     # If it looks like a person/contact search or ambiguous query
     if any(k in msg_low for k in ["find", "search", "who is", "email", "phone", "contact", "name"]):
         selected_examples += EXAMPLES_BY_CATEGORY["search"]
+
+    if any(k in msg_low for k in ["go to", "open", "navigate", "click", "tab", "sidebar", "menu"]):
+        selected_examples += EXAMPLES_BY_CATEGORY["navigation"]
         
     # Default to search if nothing else matched but we have content
     if not selected_examples and user_message:
         selected_examples = EXAMPLES_BY_CATEGORY["search"]
 
     # Use provided UI Context or empty
-    final_ui_context = ui_context if ui_context else "UI INTERACTION: No specific UI context provided. Do not suggest DOM actions unless user strictly specifies selectors."
+    final_ui_context = f"UI_CONTEXT: {ui_context}" if ui_context else "UI INTERACTION: No specific UI context provided. Do not suggest DOM actions unless user strictly specifies selectors."
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         collections=all_cols, 
@@ -125,27 +138,44 @@ async def execute_mongo_query(query_data_dict):
 
 def extract_json_actions(content):
     actions = []
-    # 1. Try to find all markdown json blocks
-    # Use regex to find contents between ```json and ```
-    matches = re.findall(r"```json(.*?)```", content, re.DOTALL)
     
-    for match in matches:
+    # 1. Look for markdown blocks with OR without language tag
+    # This finds ```json ... ``` AND ``` ... ```
+    blocks = re.findall(r"```(?:json)?\s*(.*?)\s*```", content, re.DOTALL)
+    for block in blocks:
         try:
-            data = json.loads(match.strip())
-            actions.append(data)
+            data = json.loads(block.strip())
+            if isinstance(data, dict):
+                actions.append(data)
+            elif isinstance(data, list):
+                actions.extend([item for item in data if isinstance(item, dict)])
         except:
             pass
             
-    # 2. If no markdown blocks, try to parse the whole string or find outer braces
-    if not actions and "{" in content and "}" in content:
-        try:
-             # Fallback: try to find the first valid JSON object
-             # This is a bit brittle for multiple objects without delimiters
-             # So we prioritize the markdown blocks.
-             start = content.find("{")
-             end = content.rfind("}") + 1
-             data = json.loads(content[start:end].strip())
-             actions.append(data)
-        except: pass
-        
+    # 2. If no actions from blocks, or if we want to be safe, search for raw { } objects
+    # This regex attempts to find things that look like objects: { ... }
+    # We use a non-greedy .*? but need to balance braces for deeper nesting if possible
+    # For now, a simple regex or a balanced search is better.
+    if not actions:
+        # Simple regex for finding content between { and }
+        # This can be greedy, so we find the inner-most or specific structures
+        raw_matches = re.findall(r"({[^{]*?\"action\"[^{]*?})", content, re.DOTALL)
+        for raw in raw_matches:
+            try:
+                data = json.loads(raw.strip())
+                if isinstance(data, dict) and "action" in data:
+                    actions.append(data)
+            except:
+                pass
+
+    # 3. Last resort: finding by explicit markers if they were leaked
+    if not actions and "[DOM_ACTION]" in content:
+        # This is for cases where the model might already be trying to output our internal format
+        marks = re.findall(r"\[DOM_ACTION\](.*?)\[/DOM_ACTION\]", content, re.DOTALL)
+        for m in marks:
+            try:
+                data = json.loads(m.strip())
+                actions.append(data)
+            except: pass
+
     return actions

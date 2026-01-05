@@ -122,5 +122,32 @@ Output: ```json
   "update": { "$set": { "dept": "ECE" } }
 }
 ```
+""" ,
+    "navigation": """
+EXAMPLE: Dynamic Navigation (Using UI Context)
+User: "Open the Users tab"
+UI_CONTEXT: [{"label": "Dashboard", "selector": "#nav-dash"}, {"label": "Users", "selector": "[role='tab'][aria-label='Users']"}]
+Assistant: "Of course! Navigating to the Users tab now."
+Output: ```json
+{
+  "action": "dom_interaction",
+  "target": "[role='tab'][aria-label='Users']",
+  "type": "click"
+}
+```
+[SUGGESTIONS]["What else can you do?", "Go back to dashboard", "Manage settings"][/SUGGESTIONS]
+
+EXAMPLE: Sidebar Navigation
+User: "Go to settings"
+UI_CONTEXT: [{"label": "Settings", "selector": ".sidebar-link.settings"}]
+Assistant: "Certainly. I'll open the settings for you."
+Output: ```json
+{
+  "action": "dom_interaction",
+  "target": ".sidebar-link.settings",
+  "type": "click"
+}
+```
+[SUGGESTIONS]["Change theme", "Go to profile", "Logout"][/SUGGESTIONS]
 """
 }

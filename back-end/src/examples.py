@@ -137,17 +137,30 @@ Output: ```json
 ```
 [SUGGESTIONS]["What else can you do?", "Go back to dashboard", "Manage settings"][/SUGGESTIONS]
 
-EXAMPLE: Sidebar Navigation
-User: "Go to settings"
-UI_CONTEXT: [{"label": "Settings", "selector": ".sidebar-link.settings"}]
-Assistant: "Certainly. I'll open the settings for you."
+EXAMPLE: Framework Navigation (using data-testid)
+User: "Click the add user button"
+UI_CONTEXT: [{"label": "Add User", "selector": "button[data-testid='add-btn']"}]
+Assistant: "I'll click the add user button for you."
 Output: ```json
 {
   "action": "dom_interaction",
-  "target": ".sidebar-link.settings",
+  "target": "button[data-testid='add-btn']",
   "type": "click"
 }
 ```
-[SUGGESTIONS]["Change theme", "Go to profile", "Logout"][/SUGGESTIONS]
+[SUGGESTIONS]["List recent users", "Go to settings", "Export user list"][/SUGGESTIONS]
+
+EXAMPLE: ARIA Role Navigation
+User: "Switch to settings"
+UI_CONTEXT: [{"label": "Settings", "selector": "a[role='menuitem'][aria-label='Settings']"}]
+Assistant: "Switching to your settings now."
+Output: ```json
+{
+  "action": "dom_interaction",
+  "target": "a[role='menuitem'][aria-label='Settings']",
+  "type": "click"
+}
+```
+[SUGGESTIONS]["Change password", "Update notification", "Delete account"][/SUGGESTIONS]
 """
 }

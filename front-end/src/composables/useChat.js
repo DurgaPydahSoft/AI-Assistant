@@ -9,53 +9,83 @@ export function useChat() {
 
   // --- UI Context Scraper ---
   const getUIContext = () => {
-    // 1. Identify interactive elements (links, buttons, items with click listeners)
-    // We targeting standard navigation components
+    // 1. Target semantic elements and standard testing/accessibility attributes
     const selectors = [
-      'nav a', 'aside a', 'header a',
+      'nav a', 'aside a', 'header a', 'nav button',
       'button', '.btn', '.tab', '[role="tab"]', '[role="button"]',
-      'a[href^="#"]', 'a[href^="/"]'
+      'a[href^="#"]', 'a[href^="/"]',
+      '[data-testid]', '[data-qa]', '[data-cy]'
     ]
     
     const elements = document.querySelectorAll(selectors.join(','))
     const context = []
     
-    elements.forEach((el, index) => {
-      // Skip elements inside the chatbot itself
+    elements.forEach((el) => {
       if (el.closest('.floating-wrapper') || el.closest('ai-chatbot')) return
       
-      // Basic visibility check
       const rect = el.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0 || getComputedStyle(el).display === 'none') return
       
-      // Extract identifying info
-      const label = (el.innerText || el.getAttribute('aria-label') || el.title || '').trim().substring(0, 50)
+      const label = (
+        el.innerText || 
+        el.getAttribute('aria-label') || 
+        el.getAttribute('data-testid') ||
+        el.title || 
+        ''
+      ).trim().substring(0, 50)
+      
       if (!label) return
       
-      // Generate a stable selector
-      let selector = el.id ? `#${el.id}` : ''
-      if (!selector) {
-        // Try to find a unique attribute
-        const ariaLabel = el.getAttribute('aria-label')
-        const title = el.getAttribute('title')
-        const classes = Array.from(el.classList).filter(c => !c.includes('active') && !c.includes('hover'))
-        
-        if (ariaLabel) {
-          selector = `${el.tagName.toLowerCase()}[aria-label="${ariaLabel}"]`
-        } else if (title) {
-          selector = `${el.tagName.toLowerCase()}[title="${title}"]`
-        } else if (classes.length > 0) {
+      // Generate Robust Selectors (Priority: data-testid > aria-label > role > id > specific-class)
+      let selector = ''
+      const testId = el.getAttribute('data-testid') || el.getAttribute('data-qa') || el.getAttribute('data-cy')
+      const ariaLabel = el.getAttribute('aria-label')
+      const role = el.getAttribute('role')
+      
+      if (testId) {
+        selector = `${el.tagName.toLowerCase()}[data-testid="${testId}"]`
+        // Handle variations
+        if (!el.getAttribute('data-testid')) {
+          const attr = el.hasAttribute('data-qa') ? 'data-qa' : 'data-cy'
+          selector = `${el.tagName.toLowerCase()}[${attr}="${testId}"]`
+        }
+      } else if (ariaLabel) {
+        selector = `${el.tagName.toLowerCase()}[aria-label="${ariaLabel}"]`
+      } else if (role && label) {
+        selector = `${el.tagName.toLowerCase()}[role="${role}"]`
+      } else if (el.id) {
+        selector = `#${el.id}`
+      } else {
+        const classes = Array.from(el.classList).filter(c => !c.includes('active') && !c.includes('hover') && !c.includes('focus'))
+        if (classes.length > 0) {
           selector = `${el.tagName.toLowerCase()}.${classes[0]}`
         } else {
           selector = el.tagName.toLowerCase()
         }
-        
-        // Final uniqueness check: if still not unique, add a text-contains or index-based-path approach
-        // For simplicity in Stage 1, we use a slightly more specific path or the current selector.
-        if (document.querySelectorAll(selector).length > 1) {
-           // We can't easily use :contains in querySelector, so we'll just try to make it more specific
-           const parentItem = el.parentElement ? el.parentElement.tagName.toLowerCase() : ''
-           selector = `${parentItem} > ${selector}`
+      }
+
+      // Universal Child-Index Fallback for Uniqueness
+      if (document.querySelectorAll(selector).length > 1) {
+        // Find the index of this element among all elements matching the non-unique selector
+        const matches = Array.from(document.querySelectorAll(selector))
+        const index = matches.indexOf(el)
+        if (index !== -1) {
+          // Use :nth-of-type or just a specific index if the selector is tag-based
+          // For absolute precision, we can use the index among matches
+          // but CSS doesn't have a :match-index(n). So we'll use a more complex path.
+          let path = []
+          let temp = el
+          while (temp && temp.nodeType === Node.ELEMENT_NODE && temp.tagName !== 'BODY') {
+            let sibIndex = 1
+            let prev = temp.previousElementSibling
+            while (prev) {
+              if (prev.tagName === temp.tagName) sibIndex++
+              prev = prev.previousElementSibling
+            }
+            path.unshift(`${temp.tagName.toLowerCase()}:nth-of-type(${sibIndex})`)
+            temp = temp.parentElement
+          }
+          selector = path.join(' > ')
         }
       }
       
@@ -63,99 +93,110 @@ export function useChat() {
         label,
         selector,
         type: el.tagName.toLowerCase(),
-        role: el.getAttribute('role') || 'element'
+        role: role || 'element'
       })
     })
     
-    // Deduplicate and limit to keep prompt size manageable
     const uniqueContext = Array.from(new Map(context.map(item => [item.label + item.selector, item])).values())
-    return JSON.stringify(uniqueContext.slice(0, 20))
+    return JSON.stringify(uniqueContext.slice(0, 25))
   }
 
-  // --- DOM Action Executor ---
-  const executeDOMAction = async (action) => {
-    console.log('[Agent] Executing DOM Action:', action)
+  const actionQueue = []
+  let isProcessingAction = false
 
-    const el = document.querySelector(action.target)
-    if (!el) {
-      console.warn(`[Agent] Element not found: ${action.target}`)
-      return
-    }
-
-    // 0. Visual "Targeting" Highlight
-    const originalTransition = el.style.transition
-    const originalShadow = el.style.boxShadow
-    el.style.transition = 'all 0.3s ease'
-    el.style.boxShadow = '0 0 15px 5px rgba(99, 102, 241, 0.6)'
+  const processNextAction = async () => {
+    if (isProcessingAction || actionQueue.length === 0) return
+    isProcessingAction = true
+    const action = actionQueue.shift()
     
-    setTimeout(() => {
-       el.style.boxShadow = originalShadow
-    }, 1000)
+    try {
+      await performDOMAction(action)
+    } finally {
+      isProcessingAction = false
+      setTimeout(processNextAction, 500) // Small gap between actions
+    }
+  }
 
-    if (action.type === 'click') {
-      // 1. Visual Cursor Effect
-      const cursor = document.createElement('div')
-      cursor.className = 'agent-cursor'
-      cursor.innerHTML = '👆' // Cursor icon
-      Object.assign(cursor.style, {
-        position: 'fixed',
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: '2rem',
-        zIndex: '9999',
-        transition: 'all 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
-        pointerEvents: 'none'
-      })
-      document.body.appendChild(cursor)
-
-      // Get coordinates
-      const rect = el.getBoundingClientRect()
-      const targetX = rect.left + rect.width / 2
-      const targetY = rect.top + rect.height / 2
-
-      // Move cursor
-      setTimeout(() => {
-        cursor.style.left = `${targetX}px`
-        cursor.style.top = `${targetY}px`
-      }, 50)
-
-      // Click and Remove
-      setTimeout(() => {
-        cursor.style.transform = 'translate(-50%, -50%) scale(0.8)' // Press effect
-        el.click()
-      }, 850)
-
-      setTimeout(() => {
-        cursor.remove()
-      }, 1500)
-    } else if (action.type === 'type') {
-      // 1. Highlight Element
-      const originalBorder = el.style.borderColor
-      el.style.borderColor = '#6366f1' // Active color
-      el.focus()
-
-      // 2. Type Simulation
-      const value = action.value || ''
-      let i = 0
-
-      const typeChar = () => {
-        if (i < value.length) {
-          // Programmatically set value for Vue/React reactivity
-          el.value = value.substring(0, i + 1)
-          el.dispatchEvent(new Event('input', { bubbles: true })) // Critical for v-model
-          i++
-          setTimeout(typeChar, 50 + Math.random() * 50) // Random typing speed
-        } else {
-          // Restore style
-          setTimeout(() => {
-            el.style.borderColor = originalBorder
-          }, 500)
-        }
+  const performDOMAction = (action) => {
+    return new Promise((resolve) => {
+      console.log('[Agent] Performing DOM Action:', action)
+      const el = document.querySelector(action.target)
+      if (!el) {
+        console.warn(`[Agent] Element not found: ${action.target}`)
+        resolve()
+        return
       }
 
-      typeChar()
-    }
+      // 0. Visual "Targeting" Highlight
+      const originalShadow = el.style.boxShadow
+      el.style.transition = 'all 0.3s ease'
+      el.style.boxShadow = '0 0 15px 5px rgba(99, 102, 241, 0.6)'
+      
+      if (action.type === 'click') {
+        const cursor = document.createElement('div')
+        cursor.className = 'agent-cursor'
+        cursor.innerHTML = '👆'
+        Object.assign(cursor.style, {
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: '2rem',
+          zIndex: '9999',
+          transition: 'all 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
+          pointerEvents: 'none'
+        })
+        document.body.appendChild(cursor)
+
+        const rect = el.getBoundingClientRect()
+        const targetX = rect.left + rect.width / 2
+        const targetY = rect.top + rect.height / 2
+
+        setTimeout(() => {
+          cursor.style.left = `${targetX}px`
+          cursor.style.top = `${targetY}px`
+        }, 50)
+
+        setTimeout(() => {
+          cursor.style.transform = 'translate(-50%, -50%) scale(0.8)'
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+          el.click()
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+          
+          setTimeout(() => {
+            el.style.boxShadow = originalShadow
+            cursor.remove()
+            resolve()
+          }, 600)
+        }, 850)
+      } else if (action.type === 'type') {
+        el.focus()
+        const value = action.value || ''
+        let i = 0
+        const typeChar = () => {
+          if (i < value.length) {
+            el.value = value.substring(0, i + 1)
+            el.dispatchEvent(new Event('input', { bubbles: true }))
+            el.dispatchEvent(new Event('change', { bubbles: true }))
+            i++
+            setTimeout(typeChar, 50 + Math.random() * 50)
+          } else {
+            el.blur()
+            el.style.boxShadow = originalShadow
+            resolve()
+          }
+        }
+        typeChar()
+      } else {
+        resolve()
+      }
+    })
+  }
+
+  const executeDOMAction = (action) => {
+    actionQueue.push(action)
+    processNextAction()
   }
 
   const sendMessage = async (userMsg) => {

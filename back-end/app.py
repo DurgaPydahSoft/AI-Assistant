@@ -61,16 +61,14 @@ async def chat_endpoint(request: ChatRequest):
                     content = chunk.choices[0].delta.content or ""
                     step_content += content
                     
-                    # 1. Detect if we are inside a JSON block meant for orchestration
-                    if "```json" in step_content and not is_json_block:
-                        is_json_block = True
+                    # 1. Toggle is_json_block based on total count of backtick blocks
+                    is_json_block = (step_content.count("```") % 2 != 0)
                     
                     # 2. Only yield if it's NOT a hidden orchestration block
-                    # Note: There's a tiny chance of leaking "```" if the AI takes several chunks to finish the string,
-                    # but for most modern models/chunk sizes, this logic is sufficient.
                     if not is_json_block:
-                        # Avoid yielding snippets that are partial starts of ```json
-                        if not ("```".startswith(content.strip()) or content.strip().startswith("`")):
+                        # Avoid yielding snippets that are partial starts of ```
+                        # Also avoid yielding the closing ``` itself if it just toggled off
+                        if "```" not in content and not ("```".startswith(content.strip()) or content.strip().startswith("`")):
                              yield content
                     else:
                         pass # Silently consume orchestration tokens

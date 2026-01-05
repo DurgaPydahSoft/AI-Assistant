@@ -17,7 +17,8 @@ Output: ```json
   },
   "projection": { "email": 1, "name": 1 }
 }
-```""",
+```
+[SUGGESTIONS]["What else can you find?", "List all users", "Check student records"][/SUGGESTIONS]""",
 
     "aggregation": """
 EXAMPLE: Aggregate Summary (Count/Average)

@@ -3,6 +3,8 @@ import { ref } from 'vue'
 export function useChat() {
   const messages = ref([])
   const isStreaming = ref(false)
+  const isLoading = ref(false)
+  const suggestions = ref([])
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
   // --- DOM Action Executor ---
@@ -87,6 +89,9 @@ export function useChat() {
     if (!userMsg.trim()) return
 
     messages.value.push({ role: 'user', content: userMsg })
+    suggestions.value = [] // Clear previous suggestions
+    isStreaming.value = true
+    isLoading.value = true
 
     // History context (simplified for prototype)
     const history = messages.value.slice(-6).map(m => ({
@@ -94,10 +99,6 @@ export function useChat() {
       content: m.content
     }))
 
-    const aiMessageIndex = messages.value.length
-    // Don't push empty message yet to avoid double loading indicators
-    // messages.value.push({ role: 'assistant', content: '' }) 
-    isStreaming.value = true
     let aiMessageStarted = false
 
     try {
@@ -115,9 +116,8 @@ export function useChat() {
         const { done, value } = await reader.read()
         if (done) break
 
-        // On first chunk of data, initialize the message in UI
         if (!aiMessageStarted) {
-          isStreaming.value = false // Hide loading dots
+          isLoading.value = false
           messages.value.push({ role: 'assistant', content: '' })
           aiMessageStarted = true
         }
@@ -125,44 +125,64 @@ export function useChat() {
         const chunk = decoder.decode(value, { stream: true })
         buffer += chunk
 
-        // Remove [Cached Answer] tag if present
+        // Step 1: Clean buffer and extract structured tags
         buffer = buffer.replace('[Cached Answer]', '')
 
-        // Check for DOM hooks like [DOM_ACTION]{...}[/DOM_ACTION]
-        let match
-        while ((match = buffer.match(/\[DOM_ACTION\](.*?)\[\/DOM_ACTION\]/s))) {
-          const jsonStr = match[1]
+        // DOM Actions Parsing
+        let domMatch
+        while ((domMatch = buffer.match(/\[DOM_ACTION\](.*?)\[\/DOM_ACTION\]/is))) {
           try {
-            const action = JSON.parse(jsonStr)
+            const action = JSON.parse(domMatch[1])
             executeDOMAction(action)
-            buffer = buffer.replace(match[0], '')
-          } catch (e) {
-            console.error('Failed to parse DOM action', e)
-            buffer = buffer.replace(match[0], '')
-          }
+          } catch (e) { console.error('Parsed error (DOM):', e) }
+          buffer = buffer.replace(domMatch[0], '')
         }
 
-        // Update UI with the clean buffer
+        // Suggestions Parsing
+        let sugMatch
+        while ((sugMatch = buffer.match(/\[SUGGESTIONS\](.*?)\[\/SUGGESTIONS\]/is))) {
+          try {
+            suggestions.value = JSON.parse(sugMatch[1])
+            console.log('[Agent] suggestions updated:', suggestions.value)
+          } catch (e) { 
+            console.error('Parsed error (Suggestions):', e) 
+            // If partial or invalid JSON, we might be hitting an edge case.
+          }
+          buffer = buffer.replace(sugMatch[0], '')
+        }
+
+        // Step 2: Filter out partial tags from display to prevent "leakage"
+        let displayContent = buffer
+          .replace(/\[DOM_ACTION\].*?$/is, '')
+          .replace(/\[SUGGESTIONS\].*?$/is, '')
+
+        // Update UI
         const currentMsgIndex = messages.value.length - 1
         if (currentMsgIndex >= 0) {
-          messages.value[currentMsgIndex].content = buffer
+          messages.value[currentMsgIndex].content = displayContent.trim()
         }
       }
     } catch (e) {
+      console.error('Streaming error:', e)
+      isLoading.value = false
       if (!aiMessageStarted) {
         messages.value.push({ role: 'assistant', content: `Error: ${e.message}` })
       } else {
         const currentMsgIndex = messages.value.length - 1
-        messages.value[currentMsgIndex].content += `\n[Error: ${e.message}]`
+        messages.value[currentMsgIndex].content += `\n[System Error: ${e.message}]`
       }
     } finally {
       isStreaming.value = false
+      isLoading.value = false
+      console.log('[Agent] Stream complete. Final suggestions:', suggestions.value)
     }
   }
 
   return {
     messages,
     isStreaming,
+    isLoading,
+    suggestions,
     sendMessage
   }
 }

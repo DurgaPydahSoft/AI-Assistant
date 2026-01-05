@@ -4,7 +4,7 @@ import { Send, Bot, User, Sparkles, X, MessageSquare, Sun, Moon } from 'lucide-v
 import { DotLottieVue } from '@lottiefiles/dotlottie-vue'
 import { parse } from 'marked'
 
-const props = defineProps(['messages', 'isStreaming', 'initialTheme', 'themes'])
+const props = defineProps(['messages', 'isStreaming', 'isLoading', 'suggestions', 'initialTheme', 'themes'])
 const emit = defineEmits(['send'])
 
 const availableThemes = computed(() => {
@@ -444,6 +444,10 @@ const handleSend = () => {
   input.value = ''
 }
 
+const selectSuggestion = (text) => {
+  emit('send', text)
+}
+
 const toggleTheme = (e) => {
   e.stopPropagation()
   isDarkMode.value = !isDarkMode.value
@@ -698,7 +702,7 @@ onUpdated(async () => {
           <div class="bubble markdown-content" v-html="renderMarkdown(msg.content)"></div>
         </div>
         
-        <div v-if="isStreaming" class="msg-row assistant">
+        <div v-if="isLoading" class="msg-row assistant">
           <div class="avatar-xs">
             <Sparkles :size="14" />
           </div>
@@ -706,6 +710,20 @@ onUpdated(async () => {
             <span>•</span><span>•</span><span>•</span>
           </div>
         </div>
+      </div>
+
+
+      <div v-if="suggestions.length > 0 && !isStreaming" class="suggestions-container">
+        <button 
+          v-for="(sug, idx) in suggestions" 
+          :key="idx" 
+          class="suggestion-chip"
+          @click="selectSuggestion(sug)"
+          :style="{ animationDelay: (idx * 0.1) + 's' }"
+        >
+          <Sparkles :size="12" />
+          {{ sug }}
+        </button>
       </div>
 
       <div class="input-area">
@@ -1134,6 +1152,48 @@ onUpdated(async () => {
   background: var(--user-bubble);
   color: var(--on-accent);
   border-bottom-right-radius: 2px;
+}
+
+/* Suggestions */
+.suggestions-container {
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.suggestion-chip {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  animation: chipEnter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.suggestion-chip:hover {
+  background: var(--accent-color);
+  color: var(--on-accent);
+  border-color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.suggestion-chip :deep(svg) {
+  opacity: 0.7;
+}
+
+@keyframes chipEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Input Area */
